@@ -25,7 +25,14 @@ nonisolated final class Qwen3NarrationEngine: NarrationEngine, @unchecked Sendab
     // learning and its alignment drifts on long multi-sentence runs. Only a
     // genuinely over-long sentence is split, at clause boundaries.
     private static let maxChunkChars = 300
-    private static let maxNewTokens = 4096
+    // At the 12 Hz codec a ≤300-char clause decodes to ~250 frames; the ceiling
+    // only bounds a *runaway* generation that never emits EOS. 4096 frames
+    // (~5 min of audio for one clause) let a single runaway balloon the talker
+    // KV cache and codec decode into a multi-GB transient that jetsam kills on
+    // an 8 GB iPad. 640 keeps >2× headroom over any real clause while capping
+    // that spike ~6×. `renderWithRetry` splits only on thrown errors, so this is
+    // the one guard against a non-terminating decode.
+    private static let maxNewTokens = 640
     // Qwen3 leaves almost no trailing silence, so sentences need a small gap —
     // shorter than the block/scene pause, so the rhythm stays hierarchical. The
     // coordinator reads this to gap adjacent sentence chunks during assembly.
