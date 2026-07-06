@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The neural TTS models load ~0.6–2.5 GB into unified memory; the load
+	     spike can approach the default per-app jetsam limit on 8 GB iPads.
+	     This entitlement raises that ceiling so a book's narration doesn't get
+	     the app killed mid-generation. -->
+	<key>com.apple.developer.kernel.increased-memory-limit</key>
+	<true/>
+</dict>
+</plist>

@@ -1,0 +1,677 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		CC0000000000000000000001 /* SwiftGit in Frameworks */ = {isa = PBXBuildFile; productRef = BB0000000000000000000001 /* SwiftGit */; };
+		CC0000000000000000000002 /* LibGH in Frameworks */ = {isa = PBXBuildFile; productRef = BB0000000000000000000002 /* LibGH */; };
+		CC0000000000000000000003 /* KokoroTTS in Frameworks */ = {isa = PBXBuildFile; productRef = BB0000000000000000000003 /* KokoroTTS */; };
+		CC0000000000000000000004 /* Qwen3TTS in Frameworks */ = {isa = PBXBuildFile; productRef = BB0000000000000000000004 /* Qwen3TTS */; };
+		CC0000000000000000000005 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = BB0000000000000000000005 /* MLX */; };
+		EE0000000000000000000001 /* Qwen3Voices in Resources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000001 /* Qwen3Voices */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6367BC7B2FFBEBB500CA614A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6367BC652FFBEBB400CA614A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6367BC6C2FFBEBB400CA614A;
+			remoteInfo = WritePad;
+		};
+		6367BC852FFBEBB500CA614A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6367BC652FFBEBB400CA614A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6367BC6C2FFBEBB400CA614A;
+			remoteInfo = WritePad;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		6367BC6D2FFBEBB400CA614A /* WritePad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WritePad.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6367BC7A2FFBEBB500CA614A /* WritePadTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WritePadTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6367BC842FFBEBB500CA614A /* WritePadUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WritePadUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DD0000000000000000000001 /* Qwen3Voices */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Qwen3Voices; path = Vendor/Qwen3Voices; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		6367BC6F2FFBEBB400CA614A /* WritePad */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = WritePad;
+			sourceTree = "<group>";
+		};
+		6367BC7D2FFBEBB500CA614A /* WritePadTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = WritePadTests;
+			sourceTree = "<group>";
+		};
+		6367BC872FFBEBB500CA614A /* WritePadUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = WritePadUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6367BC6A2FFBEBB400CA614A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CC0000000000000000000001 /* SwiftGit in Frameworks */,
+				CC0000000000000000000002 /* LibGH in Frameworks */,
+				CC0000000000000000000003 /* KokoroTTS in Frameworks */,
+				CC0000000000000000000004 /* Qwen3TTS in Frameworks */,
+				CC0000000000000000000005 /* MLX in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6367BC772FFBEBB500CA614A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6367BC812FFBEBB500CA614A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		6367BC642FFBEBB400CA614A = {
+			isa = PBXGroup;
+			children = (
+				6367BC6F2FFBEBB400CA614A /* WritePad */,
+				6367BC7D2FFBEBB500CA614A /* WritePadTests */,
+				6367BC872FFBEBB500CA614A /* WritePadUITests */,
+				DD0000000000000000000001 /* Qwen3Voices */,
+				6367BC6E2FFBEBB400CA614A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6367BC6E2FFBEBB400CA614A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6367BC6D2FFBEBB400CA614A /* WritePad.app */,
+				6367BC7A2FFBEBB500CA614A /* WritePadTests.xctest */,
+				6367BC842FFBEBB500CA614A /* WritePadUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		6367BC6C2FFBEBB400CA614A /* WritePad */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6367BC8E2FFBEBB500CA614A /* Build configuration list for PBXNativeTarget "WritePad" */;
+			buildPhases = (
+				6367BC692FFBEBB400CA614A /* Sources */,
+				6367BC6A2FFBEBB400CA614A /* Frameworks */,
+				6367BC6B2FFBEBB400CA614A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				6367BC6F2FFBEBB400CA614A /* WritePad */,
+			);
+			name = WritePad;
+			packageProductDependencies = (
+				BB0000000000000000000001 /* SwiftGit */,
+				BB0000000000000000000002 /* LibGH */,
+				BB0000000000000000000003 /* KokoroTTS */,
+				BB0000000000000000000004 /* Qwen3TTS */,
+				BB0000000000000000000005 /* MLX */,
+			);
+			productName = WritePad;
+			productReference = 6367BC6D2FFBEBB400CA614A /* WritePad.app */;
+			productType = "com.apple.product-type.application";
+		};
+		6367BC792FFBEBB500CA614A /* WritePadTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6367BC912FFBEBB500CA614A /* Build configuration list for PBXNativeTarget "WritePadTests" */;
+			buildPhases = (
+				6367BC762FFBEBB500CA614A /* Sources */,
+				6367BC772FFBEBB500CA614A /* Frameworks */,
+				6367BC782FFBEBB500CA614A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6367BC7C2FFBEBB500CA614A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6367BC7D2FFBEBB500CA614A /* WritePadTests */,
+			);
+			name = WritePadTests;
+			packageProductDependencies = (
+			);
+			productName = WritePadTests;
+			productReference = 6367BC7A2FFBEBB500CA614A /* WritePadTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		6367BC832FFBEBB500CA614A /* WritePadUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6367BC942FFBEBB500CA614A /* Build configuration list for PBXNativeTarget "WritePadUITests" */;
+			buildPhases = (
+				6367BC802FFBEBB500CA614A /* Sources */,
+				6367BC812FFBEBB500CA614A /* Frameworks */,
+				6367BC822FFBEBB500CA614A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6367BC862FFBEBB500CA614A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6367BC872FFBEBB500CA614A /* WritePadUITests */,
+			);
+			name = WritePadUITests;
+			packageProductDependencies = (
+			);
+			productName = WritePadUITests;
+			productReference = 6367BC842FFBEBB500CA614A /* WritePadUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		6367BC652FFBEBB400CA614A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					6367BC6C2FFBEBB400CA614A = {
+						CreatedOnToolsVersion = 26.6;
+					};
+					6367BC792FFBEBB500CA614A = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 6367BC6C2FFBEBB400CA614A;
+					};
+					6367BC832FFBEBB500CA614A = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 6367BC6C2FFBEBB400CA614A;
+					};
+				};
+			};
+			buildConfigurationList = 6367BC682FFBEBB400CA614A /* Build configuration list for PBXProject "WritePad" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 6367BC642FFBEBB400CA614A;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AA0000000000000000000001 /* XCLocalSwiftPackageReference "../swiftgit" */,
+				AA0000000000000000000002 /* XCLocalSwiftPackageReference "../swift-libgh" */,
+				AA0000000000000000000003 /* XCLocalSwiftPackageReference "../swift-kokoro-tts" */,
+				AA0000000000000000000004 /* XCLocalSwiftPackageReference "../swift-qwen3-tts" */,
+				AA0000000000000000000005 /* XCRemoteSwiftPackageReference "mlx-swift" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 6367BC6E2FFBEBB400CA614A /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				6367BC6C2FFBEBB400CA614A /* WritePad */,
+				6367BC792FFBEBB500CA614A /* WritePadTests */,
+				6367BC832FFBEBB500CA614A /* WritePadUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		6367BC6B2FFBEBB400CA614A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EE0000000000000000000001 /* Qwen3Voices in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6367BC782FFBEBB500CA614A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6367BC822FFBEBB500CA614A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		6367BC692FFBEBB400CA614A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6367BC762FFBEBB500CA614A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6367BC802FFBEBB500CA614A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6367BC7C2FFBEBB500CA614A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6367BC6C2FFBEBB400CA614A /* WritePad */;
+			targetProxy = 6367BC7B2FFBEBB500CA614A /* PBXContainerItemProxy */;
+		};
+		6367BC862FFBEBB500CA614A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6367BC6C2FFBEBB400CA614A /* WritePad */;
+			targetProxy = 6367BC852FFBEBB500CA614A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		6367BC8C2FFBEBB500CA614A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 3Y9TGL58GB;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		6367BC8D2FFBEBB500CA614A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 3Y9TGL58GB;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		6367BC8F2FFBEBB500CA614A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WritePad/WritePad.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3Y9TGL58GB;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = WritePad;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.matslindholm.unblock.WritePad;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Debug;
+		};
+		6367BC902FFBEBB500CA614A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WritePad/WritePad.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3Y9TGL58GB;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = WritePad;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.matslindholm.unblock.WritePad;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Release;
+		};
+		6367BC922FFBEBB500CA614A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3Y9TGL58GB;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.matslindholm.unblock.WritePadTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WritePad.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/WritePad";
+			};
+			name = Debug;
+		};
+		6367BC932FFBEBB500CA614A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3Y9TGL58GB;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.matslindholm.unblock.WritePadTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WritePad.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/WritePad";
+			};
+			name = Release;
+		};
+		6367BC952FFBEBB500CA614A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3Y9TGL58GB;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.matslindholm.unblock.WritePadUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = WritePad;
+			};
+			name = Debug;
+		};
+		6367BC962FFBEBB500CA614A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3Y9TGL58GB;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.matslindholm.unblock.WritePadUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = WritePad;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6367BC682FFBEBB400CA614A /* Build configuration list for PBXProject "WritePad" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6367BC8C2FFBEBB500CA614A /* Debug */,
+				6367BC8D2FFBEBB500CA614A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6367BC8E2FFBEBB500CA614A /* Build configuration list for PBXNativeTarget "WritePad" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6367BC8F2FFBEBB500CA614A /* Debug */,
+				6367BC902FFBEBB500CA614A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6367BC912FFBEBB500CA614A /* Build configuration list for PBXNativeTarget "WritePadTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6367BC922FFBEBB500CA614A /* Debug */,
+				6367BC932FFBEBB500CA614A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6367BC942FFBEBB500CA614A /* Build configuration list for PBXNativeTarget "WritePadUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6367BC952FFBEBB500CA614A /* Debug */,
+				6367BC962FFBEBB500CA614A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		AA0000000000000000000001 /* XCLocalSwiftPackageReference "../swiftgit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../swiftgit;
+		};
+		AA0000000000000000000002 /* XCLocalSwiftPackageReference "../swift-libgh" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../swift-libgh";
+		};
+		AA0000000000000000000003 /* XCLocalSwiftPackageReference "../swift-kokoro-tts" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../swift-kokoro-tts";
+		};
+		AA0000000000000000000004 /* XCLocalSwiftPackageReference "../swift-qwen3-tts" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../swift-qwen3-tts";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AA0000000000000000000005 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.21.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BB0000000000000000000001 /* SwiftGit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SwiftGit;
+		};
+		BB0000000000000000000002 /* LibGH */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LibGH;
+		};
+		BB0000000000000000000003 /* KokoroTTS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = KokoroTTS;
+		};
+		BB0000000000000000000004 /* Qwen3TTS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Qwen3TTS;
+		};
+		BB0000000000000000000005 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA0000000000000000000005 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 6367BC652FFBEBB400CA614A /* Project object */;
+}

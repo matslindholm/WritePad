@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Xcode build output
+build/
+DerivedData/
+
+# Xcode per-developer state
+xcuserdata/
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+
+# Claude Code transient cache
+.claude/tsc-cache/

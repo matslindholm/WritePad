@@ -1,0 +1,16 @@
+{
+  "de-Nina" : {
+    "language" : "German",
+    "source" : "de-Nina.wav",
+    "file" : "de-Nina.npy",
+    "codes_file" : "de-Nina.codes.npy",
+    "text" : "Als die Prinzessin bei der Drehorgel mit den Kutschern tanzte, war sie so schön, dass der Hof in Ohnmacht fiel."
+  },
+  "de-Narrator" : {
+    "language" : "German",
+    "source" : "de-Narrator.wav",
+    "file" : "de-Narrator.npy",
+    "codes_file" : "de-Narrator.codes.npy",
+    "text" : "Als die Prinzessin bei der Drehorgel mit den Kutschern tanzte, war sie so schön, dass der Hof in Ohnmacht fiel."
+  }
+}
