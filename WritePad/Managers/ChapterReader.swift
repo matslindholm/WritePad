@@ -46,7 +46,8 @@ struct ChapterReader {
         let id = frontmatter["id"] ?? Self.canonicalID(for: stem)
         let title = frontmatter["title"] ?? id
         let order = frontmatter["order"].flatMap { Int($0) } ?? Self.sortHint(for: stem)
-        let text = stripHeadingPlaceholder(body).trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = stripRemarkLines(stripHeadingPlaceholder(body))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
         return Chapter(id: id, title: title, order: order, text: text)
     }
@@ -84,6 +85,14 @@ struct ChapterReader {
             lines.removeFirst()
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Drops Markdown blockquote lines (`>` …): author remarks, not prose, so
+    /// they are neither displayed nor narrated.
+    private func stripRemarkLines(_ body: String) -> String {
+        body.components(separatedBy: "\n")
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix(">") }
+            .joined(separator: "\n")
     }
 
     // MARK: - Ordering
