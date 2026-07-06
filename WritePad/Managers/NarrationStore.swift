@@ -83,6 +83,24 @@ struct NarrationStore: Sendable {
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
+    /// How much of a chapter's audio is on disk, for the library indicator.
+    enum ChapterAudioStatus: Sendable, Equatable {
+        case none      // nothing cached
+        case partial   // some chunks rendered, but not assembled / out of date
+        case ready     // assembled and matching the current text + voice
+    }
+
+    /// `hashes` is the ordered list of the chapter's *audible* chunk hashes for
+    /// the current text and voice (`audible.map(\.hash)`).
+    func chapterStatus(chapterID: String, hashes: [String]) -> ChapterAudioStatus {
+        guard !hashes.isEmpty else { return .none }
+        if existingChapterAudio(chapterID: chapterID) != nil,
+           loadChunkManifest(chapterID: chapterID) == hashes {
+            return .ready
+        }
+        return hashes.contains(where: chunkExists) ? .partial : .none
+    }
+
     // MARK: - Chunk manifests
 
     func saveChunkManifest(_ hashes: [String], chapterID: String) throws {
@@ -94,6 +112,23 @@ struct NarrationStore: Sendable {
     func loadChunkManifest(chapterID: String) -> [String]? {
         guard let data = try? Data(contentsOf: manifestURL(chapterID: chapterID)) else { return nil }
         return try? JSONDecoder().decode([String].self, from: data)
+    }
+
+    // MARK: - Karaoke timelines
+
+    func loadTimeline(chapterID: String) -> ChapterTimeline? {
+        guard let data = try? Data(contentsOf: timelineURL(chapterID: chapterID)) else { return nil }
+        return try? JSONDecoder().decode(ChapterTimeline.self, from: data)
+    }
+
+    func saveTimeline(_ timeline: ChapterTimeline, chapterID: String) throws {
+        try FileManager.default.createDirectory(at: chapterDirectory, withIntermediateDirectories: true)
+        let data = try JSONEncoder().encode(timeline)
+        try data.write(to: timelineURL(chapterID: chapterID), options: .atomic)
+    }
+
+    private func timelineURL(chapterID: String) -> URL {
+        chapterDirectory.appendingPathComponent("\(Self.safe(chapterID)).timeline.json")
     }
 
     // MARK: - Paths

@@ -40,6 +40,85 @@ enum NarrationScript {
         reflowParagraphs(stripInlineEmphasis(normalizeSceneBreaks(adjust(body, languageCode))))
     }
 
+    // MARK: - Karaoke tokens
+
+    /// The exact word sequence the engine speaks, in order, for the reading
+    /// view. Words keep their original text (e.g. "8:40" — the audio's language
+    /// fixes are deliberately not applied) but each carries the `Emphasis` it
+    /// was wrapped in. Each pause or paragraph break starts a new
+    /// `paragraphIndex`; the title is paragraph 0.
+    static func tokens(title: String, body: String) -> [ExpectedToken] {
+        let prepared = title + pauseToken + reflowParagraphs(normalizeSceneBreaks(body))
+        let separators = CharacterSet(charactersIn: pauseToken + "\n")
+        var tokens: [ExpectedToken] = []
+        var paragraph = -1
+        for (index, segment) in prepared.components(separatedBy: separators).enumerated() {
+            let words = scanEmphasis(segment)
+            guard !words.isEmpty else { continue }
+            paragraph = index == 0 ? 0 : max(paragraph + 1, 1)
+            for word in words {
+                tokens.append(ExpectedToken(text: word.text,
+                                            normalized: normalizeForMatch(word.text),
+                                            paragraphIndex: paragraph,
+                                            emphasis: word.emphasis))
+            }
+        }
+        return tokens
+    }
+
+    /// Splits a segment into words, stripping `*`/`**` (and boundary `_`/`__`)
+    /// emphasis markers while tagging each word with the emphasis in effect.
+    static func scanEmphasis(_ segment: String) -> [(text: String, emphasis: Emphasis)] {
+        var words: [(String, Emphasis)] = []
+        var current = ""
+        var bold = false, italic = false
+        var wordBold = false, wordItalic = false
+        let chars = Array(segment)
+
+        func flush() {
+            if !current.isEmpty {
+                words.append((current, Emphasis.of(bold: wordBold, italic: wordItalic)))
+                current = ""
+            }
+        }
+        func boundary(_ char: Character?) -> Bool {
+            guard let char else { return true }
+            return !(char.isLetter || char.isNumber)
+        }
+
+        var i = 0
+        while i < chars.count {
+            let char = chars[i]
+            if char == "*" {
+                if i + 1 < chars.count, chars[i + 1] == "*" { bold.toggle(); i += 2 }
+                else { italic.toggle(); i += 1 }
+                continue
+            }
+            if char == "_" {
+                let double = i + 1 < chars.count && chars[i + 1] == "_"
+                let prev = i > 0 ? chars[i - 1] : nil
+                let next = i + (double ? 2 : 1) < chars.count ? chars[i + (double ? 2 : 1)] : nil
+                if boundary(prev) != boundary(next) {
+                    if double { bold.toggle(); i += 2 } else { italic.toggle(); i += 1 }
+                    continue
+                }
+            }
+            if char.isWhitespace { flush(); i += 1; continue }
+            if current.isEmpty { wordBold = bold; wordItalic = italic }
+            current.append(char)
+            i += 1
+        }
+        flush()
+        return words
+    }
+
+    /// Lowercased, alphanumerics-only form for fuzzy matching against the
+    /// speech recognizer (which drops punctuation and varies casing).
+    static func normalizeForMatch(_ word: String) -> String {
+        String(String.UnicodeScalarView(
+            word.lowercased().unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }))
+    }
+
     /// Removes `*italic*`, `**bold**`, and boundary `_`/`__` emphasis markers so
     /// the engine narrates the words, not the asterisks (`snake_case` survives).
     static func stripInlineEmphasis(_ text: String) -> String {

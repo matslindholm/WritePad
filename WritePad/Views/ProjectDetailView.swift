@@ -14,6 +14,8 @@ struct ProjectDetailView: View {
     @State private var voices: [NarrationVoice] = []
     @State private var selectedVoiceID: String?
     @State private var isRefreshing = false
+    @State private var audioStatus: [String: NarrationStore.ChapterAudioStatus] = [:]
+    @State private var readingChapter: Chapter?
 
     private enum LoadState { case loading, loaded, failed }
 
@@ -43,11 +45,24 @@ struct ProjectDetailView: View {
         List(manuscript?.chapters ?? []) { chapter in
             ChapterRow(
                 chapter: chapter,
+                projectKey: project.folderName,
                 phase: narration.phase,
                 progress: narration.chunkProgress,
+                status: audioStatus[chapter.id] ?? .none,
+                background: narration.backgroundStatus(for: ref(for: chapter)),
                 canNarrate: selectedVoice != nil,
                 onPlay: { narrate(chapter) },
-                onPause: { narration.pause() })
+                onPause: { narration.pause() },
+                onGenerate: { enqueue([chapter]) },
+                onCancel: { narration.cancelBackground(ref(for: chapter)) },
+                onRead: { startReading(chapter) })
+        }
+        .onChange(of: selectedVoiceID) { Task { await refreshAudioStatus() } }
+        .onChange(of: narration.phase) { Task { await refreshAudioStatus() } }
+        .onChange(of: narration.generationStamp) { Task { await refreshAudioStatus() } }
+        .sheet(item: $readingChapter) { chapter in
+            KaraokeReadingView(chapter: chapter, projectKey: project.folderName,
+                               languageCode: manuscript?.languageCode)
         }
         .overlay(alignment: .bottom) {
             if let errorMessage = narration.errorMessage {
@@ -68,6 +83,27 @@ struct ProjectDetailView: View {
                         Text(voice.label).tag(Optional(voice.id))
                     }
                 }
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button {
+                    if let chapters = manuscript?.chapters { enqueue(chapters) }
+                } label: {
+                    Label("Generate All Audio", systemImage: "square.stack.3d.up")
+                }
+                .disabled(selectedVoice == nil || manuscript == nil)
+
+                if narration.isBackgroundActive {
+                    Button(role: .destructive) {
+                        narration.cancelAllBackground()
+                    } label: {
+                        Label("Stop Background Generation", systemImage: "stop.circle")
+                    }
+                }
+            } label: {
+                Label("Generate", systemImage: narration.isBackgroundActive
+                      ? "waveform.circle.fill" : "waveform")
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
@@ -96,10 +132,28 @@ struct ProjectDetailView: View {
             loadState = .loaded
             voices = await narration.voices(for: loaded.languageCode)
             if selectedVoiceID == nil { selectedVoiceID = voices.first?.id }
+            await refreshAudioStatus()
         } catch {
             errorMessage = error.localizedDescription
             loadState = .failed
         }
+    }
+
+    private func ref(for chapter: Chapter) -> NarrationCoordinator.ChapterRef {
+        .init(projectKey: project.folderName, chapterID: chapter.id)
+    }
+
+    /// Queues chapters for background generation with the selected voice.
+    private func enqueue(_ chapters: [Chapter]) {
+        guard let voice = selectedVoice, let manuscript else { return }
+        narration.enqueueForGeneration(chapters, in: manuscript, voice: voice, storageKey: project.folderName)
+    }
+
+    /// Opens the read-along view, yielding the audio session by stopping any
+    /// coordinator playback first.
+    private func startReading(_ chapter: Chapter) {
+        narration.stop()
+        readingChapter = chapter
     }
 
     private func refresh() async {
@@ -108,10 +162,36 @@ struct ProjectDetailView: View {
         do {
             try await library.refresh(project)
             await loadManuscript()
+            // Auto-repair chapters whose text changed in this update.
+            if let voice = selectedVoice, let manuscript {
+                narration.enqueueOutdatedChapters(manuscript.chapters, in: manuscript,
+                                                  voice: voice, storageKey: project.folderName)
+            }
         } catch {
             errorMessage = error.localizedDescription
             loadState = .failed
         }
+    }
+
+    /// Recomputes each chapter's cached-audio status off the main actor (cheap
+    /// filesystem + chunk-hash checks). Re-run on load, voice change, and when a
+    /// generation finishes.
+    private func refreshAudioStatus() async {
+        guard let manuscript, let voice = selectedVoice else { return }
+        let chapters = manuscript.chapters
+        let key = project.folderName
+        let lang = manuscript.languageCode
+        audioStatus = await Task.detached(priority: .utility) {
+            let store = NarrationStore(projectKey: key)
+            var result: [String: NarrationStore.ChapterAudioStatus] = [:]
+            for chapter in chapters {
+                let hashes = ChapterChunker
+                    .chunks(title: chapter.title, body: chapter.text, voice: voice, languageCode: lang)
+                    .filter(\.isAudible).map(\.hash)
+                result[chapter.id] = store.chapterStatus(chapterID: chapter.id, hashes: hashes)
+            }
+            return result
+        }.value
     }
 
     private func narrate(_ chapter: Chapter) {
@@ -125,11 +205,21 @@ struct ProjectDetailView: View {
 
 private struct ChapterRow: View {
     let chapter: Chapter
+    let projectKey: String
     let phase: NarrationCoordinator.Phase
     let progress: NarrationCoordinator.ChunkProgress?
+    let status: NarrationStore.ChapterAudioStatus
+    let background: NarrationCoordinator.BackgroundStatus
     let canNarrate: Bool
     let onPlay: () -> Void
     let onPause: () -> Void
+    let onGenerate: () -> Void
+    let onCancel: () -> Void
+    let onRead: () -> Void
+
+    private var ref: NarrationCoordinator.ChapterRef {
+        .init(projectKey: projectKey, chapterID: chapter.id)
+    }
 
     var body: some View {
         HStack {
@@ -138,47 +228,110 @@ private struct ChapterRow: View {
                 Text(subtitle).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
+            statusBadge
             control
         }
         .padding(.vertical, 2)
+        .contextMenu { contextMenu }
+    }
+
+    @ViewBuilder
+    private var contextMenu: some View {
+        if status == .ready {
+            Button { onRead() } label: { Label("Read Along", systemImage: "captions.bubble") }
+        }
+        switch background {
+        case .idle:
+            Button { onGenerate() } label: { Label("Generate Audio", systemImage: "waveform") }
+                .disabled(!canNarrate)
+        case .queued, .rendering:
+            Button(role: .destructive) { onCancel() } label: {
+                Label("Cancel Generation", systemImage: "xmark.circle")
+            }
+        }
+    }
+
+    /// A hint at how much of this chapter's audio is already on disk. Hidden
+    /// while this row is actively rendering (the progress wheel says more).
+    @ViewBuilder
+    private var statusBadge: some View {
+        if case .rendering(let r) = phase, r == ref {
+            EmptyView()   // this row's own progress wheel says it
+        } else {
+            switch background {
+            case .rendering(let completed, let total):
+                ProgressView(value: total > 0 ? Double(completed) / Double(total) : 0)
+                    .progressViewStyle(.circular)
+                    .accessibilityLabel("Generating in background")
+            case .queued:
+                Image(systemName: "clock")
+                    .foregroundStyle(.secondary).imageScale(.small)
+                    .accessibilityLabel("Queued for generation")
+            case .idle:
+                readyBadge
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var readyBadge: some View {
+        switch status {
+        case .ready:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green).imageScale(.small)
+                .accessibilityLabel("Audio ready")
+        case .partial:
+            Image(systemName: "circle.bottomhalf.filled")
+                .foregroundStyle(.secondary).imageScale(.small)
+                .accessibilityLabel("Audio partially generated")
+        case .none:
+            EmptyView()
+        }
     }
 
     private var subtitle: String {
         if let progress = myProgress {
             return "Generating \(progress.completed)/\(progress.total)…"
         }
-        return "\(chapter.wordCount) words"
+        switch background {
+        case .rendering(let completed, let total):
+            return "Generating in background \(completed)/\(total)…"
+        case .queued:
+            return "Queued for generation…"
+        case .idle:
+            return "\(chapter.wordCount) words"
+        }
     }
 
     @ViewBuilder
     private var control: some View {
         switch phase {
-        case .rendering(let id) where id == chapter.id:
+        case .rendering(let r) where r == ref:
             if let progress = myProgress, progress.total > 0 {
                 ProgressView(value: progress.fraction).progressViewStyle(.circular)
             } else {
                 ProgressView()
             }
-        case .playing(let id) where id == chapter.id:
+        case .playing(let r) where r == ref:
             Button(action: onPause) { Image(systemName: "pause.circle.fill") }
                 .font(.title2)
         default:
-            // idle, paused (resume), or another chapter is active.
+            // idle, paused (resume), or another chapter is active. Tapping while
+            // another chapter *plays* switches to this one; only an active render
+            // (exclusive model use) blocks it.
             Button(action: onPlay) { Image(systemName: "play.circle.fill") }
                 .font(.title2)
-                .disabled(!canNarrate || busyElsewhere)
+                .disabled(!canNarrate || renderingElsewhere)
         }
     }
 
     private var myProgress: NarrationCoordinator.ChunkProgress? {
-        progress?.chapterID == chapter.id ? progress : nil
+        progress?.ref == ref ? progress : nil
     }
 
-    /// The model is running or audio is playing for a *different* chapter.
-    private var busyElsewhere: Bool {
-        switch phase {
-        case .rendering(let id), .playing(let id): return id != chapter.id
-        case .idle, .paused: return false
-        }
+    /// A render for a *different* chapter holds the model exclusively.
+    private var renderingElsewhere: Bool {
+        if case .rendering(let r) = phase { return r != ref }
+        return false
     }
 }
