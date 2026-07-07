@@ -47,6 +47,7 @@ struct KaraokeReadingView: View {
                 }
                 .safeAreaInset(edge: .bottom) { if loadState == .ready { controlBar } }
         }
+        .macReadingFrame()
         .task { await load() }
         .onDisappear { player.stop() }
     }
@@ -150,6 +151,7 @@ struct KaraokeReadingView: View {
                     Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                         .font(.system(size: 44))
                 }
+                .buttonStyle(.plain)
                 Spacer()
                 Text(timeLabel(player.duration)).font(.caption).monospacedDigit()
             }

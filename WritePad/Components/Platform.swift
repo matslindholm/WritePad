@@ -56,4 +56,17 @@ extension View {
         self
         #endif
     }
+
+    /// A large, resizable size for the read-along sheet on macOS, which would
+    /// otherwise collapse to its minimum content and clip the transcript. No-op
+    /// on iPad, where it fills the screen.
+    @ViewBuilder
+    func macReadingFrame() -> some View {
+        #if os(macOS)
+        frame(minWidth: 640, idealWidth: 820, maxWidth: .infinity,
+              minHeight: 640, idealHeight: 880, maxHeight: .infinity)
+        #else
+        self
+        #endif
+    }
 }
