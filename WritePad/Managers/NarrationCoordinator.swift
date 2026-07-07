@@ -78,6 +78,10 @@ final class NarrationCoordinator {
     /// interactive render can wait for it to finish before touching the model
     /// (never two generations at once — the memory spike would jetsam the app).
     private var backgroundRenderingChunk = false
+    /// True while the app is backgrounded. iOS kills an app that submits GPU
+    /// (Metal/MLX) work in the background, so all rendering parks until the app
+    /// returns to the foreground.
+    private var isBackgrounded = false
 
     private let pronunciation: PronunciationSettings
     private let kokoro = KokoroNarrationEngine()
@@ -229,6 +233,17 @@ final class NarrationCoordinator {
         if let current = backgroundRendering?.ref { cancelledBackgroundRefs.insert(current) }
     }
 
+    /// The app entered the background: stop starting new renders (GPU work is
+    /// forbidden there). Any chunk already in flight finishes within the
+    /// system's grace period; the worker parks before the next one.
+    func handleEnteredBackground() { isBackgrounded = true }
+
+    /// The app returned to the foreground: resume queued generation.
+    func handleEnteringForeground() {
+        isBackgrounded = false
+        startBackgroundIfNeeded()
+    }
+
     /// Renders a short sample with the current pronunciation rules applied, for
     /// auditioning in Settings. Returns a temp WAV URL, or nil if no voice is
     /// available or the sample is empty. Shares the engines' serial queue, so it
@@ -285,7 +300,7 @@ final class NarrationCoordinator {
             try store.prepareChunkDirectory()
             var completed = cached
             for chunk in audible where !store.chunkExists(hash: chunk.hash) {
-                await yieldToInteractive()                          // foreground wins the model
+                await awaitBackgroundRunnable()                     // foreground wins; park in background
                 if cancelledBackgroundRefs.contains(job.ref) { return }
                 backgroundRenderingChunk = true
                 defer { backgroundRenderingChunk = false }          // per-iteration, resets on throw too
@@ -304,11 +319,19 @@ final class NarrationCoordinator {
         }
     }
 
-    /// Waits while an interactive render holds the model, so background work
-    /// never renders concurrently with foreground playback generation.
-    private func yieldToInteractive() async {
-        while isInteractiveRendering {
+    /// The background worker parks while a foreground render holds the model
+    /// (never two generations at once) or while the app is backgrounded (no GPU
+    /// work allowed there).
+    private func awaitBackgroundRunnable() async {
+        while isInteractiveRendering || isBackgrounded {
             try? await Task.sleep(for: .milliseconds(200))
+        }
+    }
+
+    /// A foreground render parks while the app is backgrounded.
+    private func awaitForeground() async {
+        while isBackgrounded {
+            try? await Task.sleep(for: .milliseconds(250))
         }
     }
 
@@ -346,6 +369,8 @@ final class NarrationCoordinator {
             var completed = cached
             for chunk in audible {
                 if !store.chunkExists(hash: chunk.hash) {
+                    await awaitForeground()                          // no GPU work in the background
+                    guard phase == .rendering(ref) else { return }   // stopped while parked
                     let url = store.chunkURL(hash: chunk.hash)
                     try await engine.render(text: chunk.spokenText, voice: voice,
                                             settings: NarrationSettings(), to: url)

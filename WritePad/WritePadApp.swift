@@ -9,6 +9,7 @@ import SwiftUI
 
 @main
 struct WritePadApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var settings: AppSettings
     @State private var library: ProjectLibrary
     @State private var pronunciation: PronunciationSettings
@@ -30,6 +31,13 @@ struct WritePadApp: App {
                 .environment(library)
                 .environment(pronunciation)
                 .environment(narration)
+                .onChange(of: scenePhase) { _, phase in
+                    switch phase {
+                    case .background: narration.handleEnteredBackground()
+                    case .active: narration.handleEnteringForeground()
+                    default: break
+                    }
+                }
         }
     }
 }
