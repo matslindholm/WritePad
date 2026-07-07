@@ -15,8 +15,12 @@ import Foundation
 /// sentences reuses every unchanged chunk; only new hashes are re-rendered.
 struct NarrationStore: Sendable {
     let root: URL
+    /// The book's stable key (its clone folder name), used to scope iCloud
+    /// marker sync to this project.
+    private let projectKey: String
 
     init(projectKey: String) {
+        self.projectKey = projectKey
         root = Self.narrationRoot.appendingPathComponent(Self.safe(projectKey), isDirectory: true)
     }
 
@@ -202,11 +206,52 @@ struct NarrationStore: Sendable {
         markers.append(marker)
         markers.sort { $0.time < $1.time }
         try? saveMarkers(markers, chapterID: chapterID)
+        pushMarkersToCloud(chapterID: chapterID, markers: markers)
         return markers
     }
 
     private func markersURL(chapterID: String) -> URL {
         chapterDirectory.appendingPathComponent("\(Self.safe(chapterID)).markers.json")
+    }
+
+    // MARK: - Marker iCloud sync
+
+    /// The book's markers as they stand in iCloud, keyed by chapter id.
+    private func cloudMarkerBlob() -> [String: [ChapterMarker]] {
+        guard let data = CloudKeyValueStore.data(forKey: CloudKeyValueStore.markersKey(projectKey: projectKey)),
+              let blob = try? JSONDecoder().decode([String: [ChapterMarker]].self, from: data) else { return [:] }
+        return blob
+    }
+
+    private func writeCloudMarkerBlob(_ blob: [String: [ChapterMarker]]) {
+        guard let data = try? JSONEncoder().encode(blob) else { return }
+        CloudKeyValueStore.set(data, forKey: CloudKeyValueStore.markersKey(projectKey: projectKey))
+    }
+
+    private func pushMarkersToCloud(chapterID: String, markers: [ChapterMarker]) {
+        var blob = cloudMarkerBlob()
+        blob[chapterID] = markers
+        writeCloudMarkerBlob(blob)
+    }
+
+    /// Folds this book's iCloud markers into the local marker files by union of
+    /// marker id (markers are user-created, so nothing is ever dropped), and
+    /// pushes any locally-only markers back so every device converges.
+    func mergeMarkersFromCloud() {
+        let blob = cloudMarkerBlob()
+        guard !blob.isEmpty else { return }
+        for (chapterID, cloudMarkers) in blob {
+            let local = loadMarkers(chapterID: chapterID)
+            let merged = Self.union(local, cloudMarkers)
+            if merged.count != local.count { try? saveMarkers(merged, chapterID: chapterID) }
+            if merged.count != cloudMarkers.count { pushMarkersToCloud(chapterID: chapterID, markers: merged) }
+        }
+    }
+
+    private static func union(_ a: [ChapterMarker], _ b: [ChapterMarker]) -> [ChapterMarker] {
+        var byID: [UUID: ChapterMarker] = [:]
+        for marker in a + b { byID[marker.id] = marker }
+        return byID.values.sorted { $0.time < $1.time }
     }
 
     // MARK: - Paths

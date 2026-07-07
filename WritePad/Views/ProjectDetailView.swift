@@ -173,6 +173,9 @@ struct ProjectDetailView: View {
         let url = library.localURL(for: project)
         let fallback = project.displayTitle
         do {
+            // A book that arrived via iCloud sync has no local clone yet — fetch
+            // it from GitHub before reading the manuscript.
+            try await library.ensureCheckedOut(project)
             let loaded = try await Task.detached(priority: .userInitiated) {
                 try ChapterReader().read(at: url, fallbackTitle: fallback)
             }.value
