@@ -31,6 +31,7 @@ struct KaraokeReadingView: View {
     @State private var words: [WordTiming] = []
     @State private var loadState: LoadState = .loading
     @State private var errorMessage: String?
+    @State private var lastActiveIndex = 0
 
     private enum LoadState { case loading, ready, failed }
 
@@ -88,14 +89,21 @@ struct KaraokeReadingView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .coordinateSpace(.named(karaokeScrollSpace))
-                // Scroll only when the spoken word drifts out of the viewport —
-                // so highlight jitter (and a pause) never drags the page — then
-                // ease it into the upper third with room to read on below.
+                // Reading runs forward, so the spoken word only ever drifts off
+                // the bottom — scroll then, easing it into the upper third with
+                // room to read on below. The top edge only matters after a
+                // backward seek, so only scroll up when the highlight actually
+                // jumped back; otherwise the opening words (near the top) would
+                // fight the top clamp and jitter.
                 .onPreferenceChange(CurrentWordFrameKey.self) { frame in
                     guard let frame, let index = activeIndex else { return }
                     let margin: CGFloat = 64
-                    if frame.minY < margin || frame.maxY > outer.size.height - margin {
-                        withAnimation(.easeInOut(duration: 0.45)) {
+                    let movedBack = index < lastActiveIndex
+                    lastActiveIndex = index
+                    let offBottom = frame.maxY > outer.size.height - margin
+                    let offTop = movedBack && frame.minY < margin
+                    if offBottom || offTop {
+                        withAnimation(.easeInOut(duration: 0.35)) {
                             proxy.scrollTo(index, anchor: UnitPoint(x: 0.5, y: 0.3))
                         }
                     }

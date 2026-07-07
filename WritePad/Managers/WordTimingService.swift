@@ -1,6 +1,5 @@
 import AVFoundation
 import Foundation
-import os
 import Speech
 
 /// Derives a chapter's word-by-word timeline by transcribing its already
@@ -30,7 +29,6 @@ final class WordTimingService {
     }
 
     private static let defaultRegion = ["en": "en-US", "de": "de-DE"]
-    private static let log = Logger(subsystem: "app.writepad", category: "karaoke")
 
     /// On-device recognition silently drops the *start* of longer audio (a 45s
     /// window returned nothing for its first 28s, while a 12s clip transcribed
@@ -58,28 +56,12 @@ final class WordTimingService {
         let recognized = try await recognize(audioURL: audioURL, using: recognizer)
         guard !recognized.isEmpty else { throw TimingError.noSpeechRecognized }
 
-        Self.log.notice("""
-            recognized \(recognized.count, privacy: .public) words over \
-            \(totalDuration, format: .fixed(precision: 1), privacy: .public)s, \
-            \(tokens.count, privacy: .public) expected tokens
-            """)
-        Self.log.notice("first recognized: \(Self.summarizeRecognized(recognized.prefix(30)), privacy: .public)")
-
         // The LCS alignment is a DP over expected × recognized words — off the
         // main actor so it can't stall the UI.
         let words = await Task.detached(priority: .utility) {
             WordAligner.align(expected: tokens, recognized: recognized, totalDuration: totalDuration)
         }.value
-        Self.log.notice("aligned first 30: \(Self.summarizeWords(words.prefix(30)), privacy: .public)")
         return ChapterTimeline(audioModified: modified, words: words)
-    }
-
-    private static func summarizeRecognized(_ words: some Sequence<RecognizedWord>) -> String {
-        words.map { String(format: "%.2f:%@", $0.start, $0.normalized) }.joined(separator: " ")
-    }
-
-    private static func summarizeWords(_ words: some Sequence<WordTiming>) -> String {
-        words.map { String(format: "%.2f:%@", $0.start, $0.text) }.joined(separator: " ")
     }
 
     // MARK: - Speech framework
