@@ -22,6 +22,9 @@ final class AudioPreviewPlayer: NSObject, AVAudioPlayerDelegate {
 
     var isPlaying: Bool { player?.isPlaying ?? false }
 
+    /// Playback position in seconds, for dropping markers at the current point.
+    var currentTime: Double { player?.currentTime ?? 0 }
+
     /// Pauses at the current position; `resume()` continues from there.
     func pause() { player?.pause() }
 
@@ -33,6 +36,12 @@ final class AudioPreviewPlayer: NSObject, AVAudioPlayerDelegate {
     }
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        Task { @MainActor in self.onFinish?() }
+        Task { @MainActor in
+            // Ignore a delayed finish from a player we've already stopped or
+            // replaced (the delegate hops to the main actor, so a stop() or a
+            // newly-started chapter can land first).
+            guard self.player === player else { return }
+            self.onFinish?()
+        }
     }
 }

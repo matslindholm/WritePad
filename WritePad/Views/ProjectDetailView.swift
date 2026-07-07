@@ -16,7 +16,12 @@ struct ProjectDetailView: View {
     @State private var selectedVoiceID: String?
     @State private var isRefreshing = false
     @State private var audioStatus: [String: NarrationStore.ChapterAudioStatus] = [:]
+    /// Whether each chapter's read-along timeline has finished transcribing, so
+    /// the row's "fully processed" check waits for audio *and* read-along.
+    @State private var timelineReady: [String: Bool] = [:]
     @State private var readingChapter: Chapter?
+    @State private var markerFlash = false
+    @State private var flashTask: Task<Void, Never>?
 
     private enum LoadState { case loading, loaded, failed }
 
@@ -38,7 +43,12 @@ struct ProjectDetailView: View {
         .navigationTitle(manuscript?.title ?? project.displayTitle)
         .inlineNavigationTitle()
         .toolbar { toolbarContent }
-        .safeAreaInset(edge: .bottom) { MemoryReadout() }
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 0) {
+                NarrationActivityReadout()
+                MemoryReadout()
+            }
+        }
         .task(id: project.id) { await loadManuscript() }
     }
 
@@ -50,6 +60,7 @@ struct ProjectDetailView: View {
                 phase: narration.phase,
                 progress: narration.chunkProgress,
                 status: audioStatus[chapter.id] ?? .none,
+                readAlongReady: timelineReady[chapter.id] ?? false,
                 background: narration.backgroundStatus(for: ref(for: chapter)),
                 canNarrate: selectedVoice != nil,
                 onPlay: { narrate(chapter) },
@@ -63,16 +74,51 @@ struct ProjectDetailView: View {
         .onChange(of: narration.generationStamp) { Task { await refreshAudioStatus() } }
         .onChange(of: pronunciation.rules) { Task { await refreshAudioStatus() } }
         .sheet(item: $readingChapter) { chapter in
-            KaraokeReadingView(chapter: chapter, projectKey: project.folderName,
+            KaraokeReadingView(chapter: chapter, chapters: manuscript?.chapters ?? [],
+                               projectKey: project.folderName,
                                languageCode: manuscript?.languageCode)
         }
+        .background { markerHotkey }
         .overlay(alignment: .bottom) {
             if let errorMessage = narration.errorMessage {
                 Text(errorMessage)
                     .font(.caption).foregroundStyle(.white)
                     .padding(8).background(.red, in: .rect(cornerRadius: 8))
                     .padding()
+            } else if markerFlash {
+                Label("Marker added", systemImage: "bookmark.fill")
+                    .font(.caption).foregroundStyle(.white)
+                    .padding(8).background(.tint, in: .capsule)
+                    .padding()
+                    .transition(.opacity)
             }
+        }
+    }
+
+    /// A hidden button that makes Return drop a marker on the chapter now
+    /// playing (mirrors the read-along hotkey). Disabled unless a chapter is
+    /// playing, and while the read-along sheet owns the keyboard.
+    private var markerHotkey: some View {
+        Button(action: addMarker) { Color.clear.frame(width: 0, height: 0) }
+            .keyboardShortcut(.return, modifiers: [])
+            .disabled(!isPlaying || readingChapter != nil)
+            .opacity(0)
+            .accessibilityHidden(true)
+    }
+
+    private var isPlaying: Bool {
+        if case .playing = narration.phase { return true }
+        return false
+    }
+
+    private func addMarker() {
+        guard narration.addMarker() != nil else { return }
+        withAnimation { markerFlash = true }
+        flashTask?.cancel()
+        flashTask = Task {
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            withAnimation { markerFlash = false }
         }
     }
 
@@ -135,6 +181,10 @@ struct ProjectDetailView: View {
             voices = await narration.voices(for: loaded.languageCode)
             if selectedVoiceID == nil { selectedVoiceID = voices.first?.id }
             await refreshAudioStatus()
+            // Finish (or repair) read-along transcription for chapters whose
+            // audio already exists, so the "fully processed" check can complete.
+            narration.ensureTimelines(for: loaded.chapters, languageCode: loaded.languageCode,
+                                      storageKey: project.folderName)
         } catch {
             errorMessage = error.localizedDescription
             loadState = .failed
@@ -184,18 +234,22 @@ struct ProjectDetailView: View {
         let key = project.folderName
         let lang = manuscript.languageCode
         let subs = pronunciation.substitutions(for: lang)
-        audioStatus = await Task.detached(priority: .utility) {
+        let computed = await Task.detached(priority: .utility) {
             let store = NarrationStore(projectKey: key)
-            var result: [String: NarrationStore.ChapterAudioStatus] = [:]
+            var status: [String: NarrationStore.ChapterAudioStatus] = [:]
+            var timelines: [String: Bool] = [:]
             for chapter in chapters {
                 let hashes = ChapterChunker
                     .chunks(title: chapter.title, body: chapter.text, voice: voice,
                             languageCode: lang, substitutions: subs)
                     .filter(\.isAudible).map(\.hash)
-                result[chapter.id] = store.chapterStatus(chapterID: chapter.id, hashes: hashes)
+                status[chapter.id] = store.chapterStatus(chapterID: chapter.id, hashes: hashes)
+                timelines[chapter.id] = store.hasTimeline(chapterID: chapter.id)
             }
-            return result
+            return (status, timelines)
         }.value
+        audioStatus = computed.0
+        timelineReady = computed.1
     }
 
     private func narrate(_ chapter: Chapter) {
@@ -213,6 +267,9 @@ private struct ChapterRow: View {
     let phase: NarrationCoordinator.Phase
     let progress: NarrationCoordinator.ChunkProgress?
     let status: NarrationStore.ChapterAudioStatus
+    /// Read-along timeline transcribed and cached — the second half of a chapter
+    /// being fully processed, after its audio.
+    let readAlongReady: Bool
     let background: NarrationCoordinator.BackgroundStatus
     let canNarrate: Bool
     let onPlay: () -> Void
@@ -280,10 +337,15 @@ private struct ChapterRow: View {
     @ViewBuilder
     private var readyBadge: some View {
         switch status {
-        case .ready:
+        case .ready where readAlongReady:
+            // Fully processed: audio *and* read-along both cached.
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green).imageScale(.small)
-                .accessibilityLabel("Audio ready")
+                .foregroundStyle(.green).imageScale(.large)
+                .accessibilityLabel("Fully processed")
+        case .ready:
+            // Audio is ready, read-along transcription still pending.
+            ProgressView().controlSize(.mini)
+                .accessibilityLabel("Preparing read-along")
         case .partial:
             Image(systemName: "circle.bottomhalf.filled")
                 .foregroundStyle(.secondary).imageScale(.small)

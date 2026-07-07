@@ -127,8 +127,39 @@ struct NarrationStore: Sendable {
         try data.write(to: timelineURL(chapterID: chapterID), options: .atomic)
     }
 
+    func hasTimeline(chapterID: String) -> Bool {
+        FileManager.default.fileExists(atPath: timelineURL(chapterID: chapterID).path)
+    }
+
     private func timelineURL(chapterID: String) -> URL {
         chapterDirectory.appendingPathComponent("\(Self.safe(chapterID)).timeline.json")
+    }
+
+    // MARK: - Listener markers
+
+    func loadMarkers(chapterID: String) -> [ChapterMarker] {
+        guard let data = try? Data(contentsOf: markersURL(chapterID: chapterID)) else { return [] }
+        return (try? JSONDecoder().decode([ChapterMarker].self, from: data)) ?? []
+    }
+
+    func saveMarkers(_ markers: [ChapterMarker], chapterID: String) throws {
+        try FileManager.default.createDirectory(at: chapterDirectory, withIntermediateDirectories: true)
+        let data = try JSONEncoder().encode(markers)
+        try data.write(to: markersURL(chapterID: chapterID), options: .atomic)
+    }
+
+    /// Appends a marker and returns the chapter's markers, sorted by time.
+    @discardableResult
+    func appendMarker(_ marker: ChapterMarker, chapterID: String) -> [ChapterMarker] {
+        var markers = loadMarkers(chapterID: chapterID)
+        markers.append(marker)
+        markers.sort { $0.time < $1.time }
+        try? saveMarkers(markers, chapterID: chapterID)
+        return markers
+    }
+
+    private func markersURL(chapterID: String) -> URL {
+        chapterDirectory.appendingPathComponent("\(Self.safe(chapterID)).markers.json")
     }
 
     // MARK: - Paths

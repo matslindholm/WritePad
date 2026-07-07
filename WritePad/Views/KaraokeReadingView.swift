@@ -20,11 +20,13 @@ private struct CurrentWordFrameKey: PreferenceKey {
 /// highlighting the word being spoken, using the `ChapterTimeline` derived by
 /// `WordTimingService`. Tapping a word seeks the audio there.
 struct KaraokeReadingView: View {
-    let chapter: Chapter
+    /// Full chapter order, so reading rolls into the next chapter automatically.
+    let chapters: [Chapter]
     let projectKey: String
     let languageCode: String?
 
     @Environment(\.dismiss) private var dismiss
+    @State private var current: Chapter
     @State private var player = ReadingPlayer()
     @State private var timing = WordTimingService()
     @State private var paragraphs: [[IndexedWord]] = []
@@ -32,6 +34,16 @@ struct KaraokeReadingView: View {
     @State private var loadState: LoadState = .loading
     @State private var errorMessage: String?
     @State private var lastActiveIndex = 0
+    @State private var markerCount = 0
+    @State private var markerFlash = false
+    @State private var flashTask: Task<Void, Never>?
+
+    init(chapter: Chapter, chapters: [Chapter], projectKey: String, languageCode: String?) {
+        self.chapters = chapters
+        self.projectKey = projectKey
+        self.languageCode = languageCode
+        _current = State(initialValue: chapter)
+    }
 
     private enum LoadState { case loading, ready, failed }
 
@@ -40,7 +52,7 @@ struct KaraokeReadingView: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle(chapter.title)
+                .navigationTitle(current.title)
                 .inlineNavigationTitle()
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
@@ -49,6 +61,7 @@ struct KaraokeReadingView: View {
         }
         .macReadingFrame()
         .task { await load() }
+        .onChange(of: player.finishTick) { advanceToNextChapter() }
         .onDisappear { player.stop() }
     }
 
@@ -153,11 +166,39 @@ struct KaraokeReadingView: View {
                 }
                 .buttonStyle(.plain)
                 Spacer()
-                Text(timeLabel(player.duration)).font(.caption).monospacedDigit()
+                markerButton
             }
         }
         .padding()
         .background(.bar)
+        .overlay(alignment: .top) { if markerFlash { markerFlashLabel } }
+    }
+
+    /// Drops a marker at the current point. Return is the hardware-keyboard
+    /// hotkey for the same, so a listener can mark a spot without reaching for
+    /// the screen.
+    private var markerButton: some View {
+        Button(action: addMarker) {
+            HStack(spacing: 4) {
+                Image(systemName: "bookmark.fill")
+                if markerCount > 0 {
+                    Text("\(markerCount)").monospacedDigit()
+                }
+            }
+            .font(.title3)
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut(.return, modifiers: [])
+        .accessibilityLabel("Add marker")
+    }
+
+    private var markerFlashLabel: some View {
+        Label("Marker added", systemImage: "bookmark.fill")
+            .font(.caption).padding(.horizontal, 12).padding(.vertical, 6)
+            .background(.tint, in: .capsule)
+            .foregroundStyle(.white)
+            .padding(.top, 4)
+            .transition(.opacity)
     }
 
     /// Last word whose start time has passed — the one being spoken. The words
@@ -179,18 +220,21 @@ struct KaraokeReadingView: View {
     }
 
     private func load() async {
+        loadState = .loading
+        lastActiveIndex = 0
         let store = NarrationStore(projectKey: projectKey)
-        guard let audioURL = store.existingChapterAudio(chapterID: chapter.id) else {
+        markerCount = store.loadMarkers(chapterID: current.id).count
+        guard let audioURL = store.existingChapterAudio(chapterID: current.id) else {
             errorMessage = "This chapter has no generated audio yet."
             loadState = .failed
             return
         }
-        let tokens = NarrationScript.tokens(title: chapter.title, body: chapter.text)
+        let tokens = NarrationScript.tokens(title: current.title, body: current.text)
         do {
             let timeline = try await timing.timeline(
                 audioURL: audioURL, tokens: tokens, languageCode: languageCode,
-                cached: store.loadTimeline(chapterID: chapter.id))
-            try? store.saveTimeline(timeline, chapterID: chapter.id)
+                cached: store.loadTimeline(chapterID: current.id))
+            try? store.saveTimeline(timeline, chapterID: current.id)
             words = timeline.words
             paragraphs = Self.group(timeline.words)
             try player.load(url: audioURL)
@@ -202,6 +246,35 @@ struct KaraokeReadingView: View {
             errorMessage = error.localizedDescription
             loadState = .failed
         }
+    }
+
+    /// Records a marker at the current point with the words around it, and
+    /// flashes a brief confirmation.
+    private func addMarker() {
+        guard loadState == .ready else { return }
+        let store = NarrationStore(projectKey: projectKey)
+        let text = MarkerContext.text(around: player.currentTime, in: words)
+        let markers = store.appendMarker(ChapterMarker(time: player.currentTime, context: text), chapterID: current.id)
+        markerCount = markers.count
+        withAnimation { markerFlash = true }
+        flashTask?.cancel()
+        flashTask = Task {
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            withAnimation { markerFlash = false }
+        }
+    }
+
+    /// When a chapter finishes, roll into the next one that already has audio, so
+    /// listening runs back to back.
+    private func advanceToNextChapter() {
+        guard let index = chapters.firstIndex(where: { $0.id == current.id }) else { return }
+        let store = NarrationStore(projectKey: projectKey)
+        guard let next = chapters[(index + 1)...].first(where: {
+            store.existingChapterAudio(chapterID: $0.id) != nil
+        }) else { return }
+        current = next
+        Task { await load() }
     }
 
     /// Groups the flat timeline into paragraphs, keeping each word's global
@@ -231,6 +304,10 @@ final class ReadingPlayer: NSObject, AVAudioPlayerDelegate {
     private(set) var currentTime: Double = 0
     private(set) var duration: Double = 0
     private(set) var isPlaying = false
+    /// Bumped when playback reaches the end on its own (not on manual stop), so
+    /// the view can advance to the next chapter without a stored closure that
+    /// would retain it.
+    private(set) var finishTick = 0
 
     private var player: AVAudioPlayer?
     private var ticker: Task<Void, Never>?
@@ -300,9 +377,12 @@ final class ReadingPlayer: NSObject, AVAudioPlayerDelegate {
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         Task { @MainActor in
+            // Ignore a delayed finish from a player we've already replaced.
+            guard self.player === player else { return }
             self.stopTicker()
             self.isPlaying = false
             self.currentTime = self.duration
+            self.finishTick += 1
         }
     }
 }

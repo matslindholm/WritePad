@@ -61,6 +61,22 @@ final class NarrationCoordinator {
         let languageCode: String?
     }
 
+    /// What's needed to continue playing after a chapter ends: the book's chapter
+    /// order and the voice to render the next chapter with. Captured whenever a
+    /// chapter starts, so `onFinish` can roll into the next one automatically.
+    private struct PlaybackContext {
+        let manuscript: Manuscript
+        let voice: NarrationVoice
+        let storageKey: String
+    }
+
+    /// Read-along timeline still to be built for an assembled chapter.
+    private struct TimelineJob: Equatable {
+        let ref: ChapterRef
+        let chapter: Chapter
+        let languageCode: String?
+    }
+
     private(set) var phase: Phase = .idle
     private(set) var chunkProgress: ChunkProgress?
     private(set) var errorMessage: String?
@@ -68,8 +84,9 @@ final class NarrationCoordinator {
     /// Background generation, kept off the interactive path. Interactive playback
     /// always wins the model: the worker parks while a foreground render runs.
     private(set) var backgroundRendering: ChunkProgress?
-    /// Bumped whenever any chapter's audio finishes assembling (interactive or
-    /// background), so views can refresh their per-chapter "ready" indicators.
+    /// Bumped whenever a chapter's audio finishes assembling or its read-along
+    /// timeline finishes transcribing (interactive or background), so views can
+    /// refresh their per-chapter "ready" indicators.
     private(set) var generationStamp = 0
     private var backgroundJobs: [BackgroundJob] = []
     private var backgroundTask: Task<Void, Never>?
@@ -83,6 +100,16 @@ final class NarrationCoordinator {
     /// returns to the foreground.
     private var isBackgrounded = false
 
+    /// Auto-created read-along timelines, built off the interactive path so
+    /// opening read-along on a generated chapter is instant.
+    private var timelineJobs: [TimelineJob] = []
+    private var timelineTask: Task<Void, Never>?
+    private let timing = WordTimingService()
+
+    /// The book and voice currently playing, so playback can roll into the next
+    /// chapter when the current one ends.
+    private var playbackContext: PlaybackContext?
+
     private let pronunciation: PronunciationSettings
     private let kokoro = KokoroNarrationEngine()
     private let qwen3 = Qwen3NarrationEngine()
@@ -90,7 +117,7 @@ final class NarrationCoordinator {
 
     init(pronunciation: PronunciationSettings) {
         self.pronunciation = pronunciation
-        player.onFinish = { [weak self] in self?.phase = .idle }
+        player.onFinish = { [weak self] in self?.handlePlaybackFinished() }
     }
 
     /// English → Kokoro, otherwise Qwen3 (German voices).
@@ -120,6 +147,8 @@ final class NarrationCoordinator {
     /// reused from the content-addressed cache.
     func narrate(chapter: Chapter, in manuscript: Manuscript, voice: NarrationVoice, storageKey: String) async {
         let ref = ChapterRef(projectKey: storageKey, chapterID: chapter.id)
+        // Remember what to play next when this chapter ends.
+        playbackContext = PlaybackContext(manuscript: manuscript, voice: voice, storageKey: storageKey)
 
         // Resume the same paused chapter (same book *and* same chapter).
         if case .paused(let paused) = phase, paused == ref {
@@ -153,6 +182,11 @@ final class NarrationCoordinator {
         // chunks (same text, same voice) — play it, no model run.
         if let assembled = store.existingChapterAudio(chapterID: chapter.id),
            store.loadChunkManifest(chapterID: chapter.id) == hashes {
+            // Audio generated before this build may lack a timeline; make one so
+            // read-along and markers work on it too.
+            if !store.hasTimeline(chapterID: chapter.id) {
+                enqueueTimeline(chapter: chapter, in: ref, languageCode: manuscript.languageCode)
+            }
             play(assembled, ref: ref)
             return
         }
@@ -175,14 +209,59 @@ final class NarrationCoordinator {
 
     func prepareForTermination() {
         cancelAllBackground()
+        timelineTask?.cancel()
+        timelineJobs.removeAll()
         player.stop()
         kokoro.quiesce()
         qwen3.quiesce()
     }
 
+    /// A chapter finished playing on its own: roll into the next chapter of the
+    /// same book so listening runs back to back. Explicit stops don't reach here
+    /// (they never fire the finish delegate).
+    private func handlePlaybackFinished() {
+        guard case .playing(let ref) = phase else { return }
+        phase = .idle
+        guard let context = playbackContext,
+              let index = context.manuscript.chapters.firstIndex(where: { $0.id == ref.chapterID })
+        else { return }
+        // Roll into the next chapter that already has audio, so back-to-back
+        // listening never stalls on an un-generated chapter's model spin-up.
+        let store = NarrationStore(projectKey: context.storageKey)
+        guard let next = context.manuscript.chapters[(index + 1)...].first(where: {
+            store.existingChapterAudio(chapterID: $0.id) != nil
+        }) else { return }
+        Task {
+            await narrate(chapter: next, in: context.manuscript,
+                          voice: context.voice, storageKey: context.storageKey)
+        }
+    }
+
+    // MARK: - Markers
+
+    /// Drops a marker at the current playback position of the chapter now
+    /// playing, recording the surrounding words from its read-along timeline.
+    /// Returns the marker, or nil if nothing is playing.
+    @discardableResult
+    func addMarker() -> ChapterMarker? {
+        guard case .playing(let ref) = phase,
+              let chapter = playbackContext?.manuscript.chapters.first(where: { $0.id == ref.chapterID })
+        else { return nil }
+        let store = NarrationStore(projectKey: ref.projectKey)
+        let time = player.currentTime
+        let context = MarkerContext.text(around: time, in: store.loadTimeline(chapterID: chapter.id)?.words ?? [])
+        let marker = ChapterMarker(time: time, context: context)
+        store.appendMarker(marker, chapterID: chapter.id)
+        return marker
+    }
+
     // MARK: - Background queue
 
     var isBackgroundActive: Bool { backgroundRendering != nil || !backgroundJobs.isEmpty }
+
+    /// Chapters waiting in the background generation queue (not counting the one
+    /// currently rendering), for the activity readout.
+    var queuedGenerationCount: Int { backgroundJobs.count }
 
     /// Background pipeline state for one chapter, for the row indicator.
     func backgroundStatus(for ref: ChapterRef) -> BackgroundStatus {
@@ -279,6 +358,65 @@ final class NarrationCoordinator {
         return url
     }
 
+    // MARK: - Read-along timelines
+
+    /// Number of chapters whose read-along timeline is still being (or waiting to
+    /// be) built, for the activity readout.
+    var pendingTimelineCount: Int { timelineJobs.count }
+
+    /// Enqueues read-along timelines for any chapters that already have audio but
+    /// no timeline yet — e.g. audio generated in a previous session, before this
+    /// build, or whose transcription was interrupted. Called on load so a book's
+    /// read-along data finishes building on its own, not only when a chapter is
+    /// opened.
+    func ensureTimelines(for chapters: [Chapter], languageCode: String?, storageKey: String) {
+        let store = NarrationStore(projectKey: storageKey)
+        for chapter in chapters where store.existingChapterAudio(chapterID: chapter.id) != nil
+            && !store.hasTimeline(chapterID: chapter.id) {
+            enqueueTimeline(chapter: chapter,
+                            in: ChapterRef(projectKey: storageKey, chapterID: chapter.id),
+                            languageCode: languageCode)
+        }
+    }
+
+    /// Queues a chapter's read-along timeline to be transcribed and cached off
+    /// the interactive path. Idempotent per chapter; starts the worker if idle.
+    private func enqueueTimeline(chapter: Chapter, in ref: ChapterRef, languageCode: String?) {
+        guard !timelineJobs.contains(where: { $0.ref == ref }) else { return }
+        timelineJobs.append(TimelineJob(ref: ref, chapter: chapter, languageCode: languageCode))
+        if timelineTask == nil {
+            timelineTask = Task { [weak self] in await self?.runTimelineQueue() }
+        }
+    }
+
+    /// Builds queued timelines one at a time (Speech recognition is serialized to
+    /// itself) and parks while the app is backgrounded.
+    private func runTimelineQueue() async {
+        defer { timelineTask = nil }
+        while !timelineJobs.isEmpty {
+            let job = timelineJobs.removeFirst()
+            // Transcription loads its own model; keep it off the GPU renders'
+            // back and out of the background (where Speech is suspended anyway).
+            while isInteractiveRendering || backgroundRenderingChunk || isBackgrounded {
+                try? await Task.sleep(for: .milliseconds(300))
+            }
+            let store = NarrationStore(projectKey: job.ref.projectKey)
+            guard let audioURL = store.existingChapterAudio(chapterID: job.chapter.id) else { continue }
+            let tokens = NarrationScript.tokens(title: job.chapter.title, body: job.chapter.text)
+            do {
+                let timeline = try await timing.timeline(
+                    audioURL: audioURL, tokens: tokens, languageCode: job.languageCode,
+                    cached: store.loadTimeline(chapterID: job.chapter.id))
+                try? store.saveTimeline(timeline, chapterID: job.chapter.id)
+                // Let the row's "fully processed" badge light up now the
+                // read-along timeline exists.
+                generationStamp &+= 1
+            } catch {
+                // Best-effort: read-along still builds the timeline on demand.
+            }
+        }
+    }
+
     private func audibleHashes(for chapter: Chapter, voice: NarrationVoice, languageCode: String?) -> [String] {
         ChapterChunker.chunks(title: chapter.title, body: chapter.text, voice: voice, languageCode: languageCode,
                               substitutions: pronunciation.substitutions(for: languageCode))
@@ -328,6 +466,7 @@ final class NarrationCoordinator {
             }
             try await assembleAndSave(chapterID: job.ref.chapterID, chunks: chunks,
                                       hashes: hashes, voice: job.voice, store: store)
+            enqueueTimeline(chapter: job.chapter, in: job.ref, languageCode: job.languageCode)
             // Safe to reclaim orphaned chunks only when no other generation for
             // this project might still be holding unmanifested chunks.
             if backgroundJobs.isEmpty, !isInteractiveRendering { store.collectGarbageChunks() }
@@ -400,6 +539,7 @@ final class NarrationCoordinator {
             let outURL = try await assembleAndSave(
                 chapterID: chapter.id, chunks: chunks, hashes: hashes, voice: voice, store: store)
             if !isBackgroundActive { store.collectGarbageChunks() }
+            enqueueTimeline(chapter: chapter, in: ref, languageCode: manuscript.languageCode)
 
             guard phase == .rendering(ref) else { return }
             play(outURL, ref: ref)
