@@ -26,6 +26,9 @@ struct WritePadApp: App {
     @State private var narration: NarrationCoordinator
 
     init() {
+        // Relocate the narration cache out of the purgeable Caches directory
+        // before anything reads it, keeping already-generated audio.
+        NarrationStore.migrateFromCachesIfNeeded()
         let settings = AppSettings()
         let pronunciation = PronunciationSettings()
         _settings = State(initialValue: settings)

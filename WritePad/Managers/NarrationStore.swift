@@ -17,10 +17,57 @@ struct NarrationStore: Sendable {
     let root: URL
 
     init(projectKey: String) {
-        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        root = caches
+        root = Self.narrationRoot.appendingPathComponent(Self.safe(projectKey), isDirectory: true)
+    }
+
+    /// Base directory holding every project's narration cache. Lives in
+    /// Application Support rather than Caches: chapter audio costs a model
+    /// download plus GPU time to rebuild, so it must not be purged by the OS
+    /// under storage pressure the way a cache can be.
+    static var narrationRoot: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return base.appendingPathComponent("Narration", isDirectory: true)
+    }
+
+    /// One-shot relocation of the narration store from its old home in Caches to
+    /// Application Support. Same-volume, so the common case is a single instant
+    /// rename; a partially-migrated new location is merged file-by-file (keeping
+    /// whatever the new location already holds). Safe to call on every launch —
+    /// it does nothing once the old directory is gone.
+    static func migrateFromCachesIfNeeded() {
+        let fm = FileManager.default
+        let old = fm.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Narration", isDirectory: true)
-            .appendingPathComponent(Self.safe(projectKey), isDirectory: true)
+        guard fm.fileExists(atPath: old.path) else { return }
+        let new = narrationRoot
+        if fm.fileExists(atPath: new.path) {
+            merge(old, into: new, using: fm)
+            try? fm.removeItem(at: old)
+        } else {
+            try? fm.createDirectory(at: new.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if (try? fm.moveItem(at: old, to: new)) == nil {
+                merge(old, into: new, using: fm)
+                try? fm.removeItem(at: old)
+            }
+        }
+    }
+
+    /// Recursively moves every file under `src` to the matching path under `dst`,
+    /// never overwriting a file the destination already has. Content-addressed
+    /// chunks make same-named files identical, so skipping collisions is safe.
+    private static func merge(_ src: URL, into dst: URL, using fm: FileManager) {
+        guard let items = try? fm.contentsOfDirectory(
+            at: src, includingPropertiesForKeys: [.isDirectoryKey]) else { return }
+        for item in items {
+            let target = dst.appendingPathComponent(item.lastPathComponent)
+            let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            if isDir {
+                try? fm.createDirectory(at: target, withIntermediateDirectories: true)
+                merge(item, into: target, using: fm)
+            } else if !fm.fileExists(atPath: target.path) {
+                try? fm.moveItem(at: item, to: target)
+            }
+        }
     }
 
     // MARK: - Chunk cache
