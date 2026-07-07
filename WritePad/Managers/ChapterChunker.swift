@@ -18,12 +18,13 @@ enum ChapterChunker {
         title.isEmpty ? body : title + "\n\n" + body
     }
 
-    static func chunks(title: String, body: String, voice: NarrationVoice, languageCode: String?) -> [AudioChunk] {
+    static func chunks(title: String, body: String, voice: NarrationVoice, languageCode: String?,
+                       substitutions: [TextSubstitution] = []) -> [AudioChunk] {
         var chunks: [AudioChunk] = []
 
         let titleNS = title as NSString
         if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let spoken = NarrationScript.adjust(title, languageCode)
+            let spoken = NarrationScript.adjust(title, languageCode, substitutions: substitutions)
             chunks.append(AudioChunk(kind: .heading, displayRange: NSRange(location: 0, length: titleNS.length),
                                      spokenText: spoken, voiceID: voice.id))
         }
@@ -35,13 +36,15 @@ enum ChapterChunker {
         var cursor = 0
         for breakRange in matches(of: sceneBreakPattern, in: bodyNS, range: fullBody, perLine: true) {
             appendSpeech(in: bodyNS, range: NSRange(location: cursor, length: breakRange.location - cursor),
-                         voice: voice, languageCode: languageCode, bodyOffset: bodyOffset, into: &chunks)
+                         voice: voice, languageCode: languageCode, bodyOffset: bodyOffset,
+                         substitutions: substitutions, into: &chunks)
             chunks.append(AudioChunk(kind: .sceneBreak, displayRange: shift(breakRange, by: bodyOffset),
                                      spokenText: "", voiceID: voice.id))
             cursor = breakRange.location + breakRange.length
         }
         appendSpeech(in: bodyNS, range: NSRange(location: cursor, length: bodyNS.length - cursor),
-                     voice: voice, languageCode: languageCode, bodyOffset: bodyOffset, into: &chunks)
+                     voice: voice, languageCode: languageCode, bodyOffset: bodyOffset,
+                     substitutions: substitutions, into: &chunks)
 
         return chunks
     }
@@ -49,7 +52,8 @@ enum ChapterChunker {
     // MARK: - Decomposition
 
     private static func appendSpeech(in bodyNS: NSString, range block: NSRange, voice: NarrationVoice,
-                                     languageCode: String?, bodyOffset: Int, into chunks: inout [AudioChunk]) {
+                                     languageCode: String?, bodyOffset: Int,
+                                     substitutions: [TextSubstitution], into chunks: inout [AudioChunk]) {
         guard block.length > 0 else { return }
         for paragraph in splitRanges(in: bodyNS, range: block, separator: paragraphSeparator) {
             guard let paragraph = trimmed(paragraph, in: bodyNS) else { continue }
@@ -59,7 +63,8 @@ enum ChapterChunker {
             for unit in unitRanges {
                 guard let unit = trimmed(unit, in: bodyNS) else { continue }
                 let original = bodyNS.substring(with: unit)
-                let spoken = NarrationScript.prepareBody(original, languageCode: languageCode)
+                let spoken = NarrationScript.prepareBody(original, languageCode: languageCode,
+                                                         substitutions: substitutions)
                 guard !spoken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
                 chunks.append(AudioChunk(kind: .speech, displayRange: shift(unit, by: bodyOffset),
                                          spokenText: spoken, voiceID: voice.id))

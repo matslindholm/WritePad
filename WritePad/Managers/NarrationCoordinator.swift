@@ -79,11 +79,13 @@ final class NarrationCoordinator {
     /// (never two generations at once — the memory spike would jetsam the app).
     private var backgroundRenderingChunk = false
 
+    private let pronunciation: PronunciationSettings
     private let kokoro = KokoroNarrationEngine()
     private let qwen3 = Qwen3NarrationEngine()
     private let player = AudioPreviewPlayer()
 
-    init() {
+    init(pronunciation: PronunciationSettings) {
+        self.pronunciation = pronunciation
         player.onFinish = { [weak self] in self?.phase = .idle }
     }
 
@@ -134,7 +136,8 @@ final class NarrationCoordinator {
 
         let store = NarrationStore(projectKey: storageKey)
         let chunks = ChapterChunker.chunks(
-            title: chapter.title, body: chapter.text, voice: voice, languageCode: manuscript.languageCode)
+            title: chapter.title, body: chapter.text, voice: voice, languageCode: manuscript.languageCode,
+            substitutions: pronunciation.substitutions(for: manuscript.languageCode))
         let audible = chunks.filter(\.isAudible)
         guard !audible.isEmpty else {
             errorMessage = "This chapter has no text to narrate."
@@ -226,8 +229,27 @@ final class NarrationCoordinator {
         if let current = backgroundRendering?.ref { cancelledBackgroundRefs.insert(current) }
     }
 
+    /// Renders a short sample with the current pronunciation rules applied, for
+    /// auditioning in Settings. Returns a temp WAV URL, or nil if no voice is
+    /// available or the sample is empty. Shares the engines' serial queue, so it
+    /// never renders concurrently with narration.
+    func renderSample(_ text: String, languageCode: String?) async throws -> URL? {
+        guard let voice = await defaultVoice(for: languageCode) else { return nil }
+        let spoken = NarrationScript.prepareBody(
+            text, languageCode: languageCode, substitutions: pronunciation.substitutions(for: languageCode))
+        guard !spoken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        await parkBackground()
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("pron-preview-\(UUID().uuidString).wav")
+        try await engine(for: languageCode).render(
+            text: spoken, voice: voice, settings: NarrationSettings(), to: url)
+        MLXMemory.reclaim()
+        return url
+    }
+
     private func audibleHashes(for chapter: Chapter, voice: NarrationVoice, languageCode: String?) -> [String] {
-        ChapterChunker.chunks(title: chapter.title, body: chapter.text, voice: voice, languageCode: languageCode)
+        ChapterChunker.chunks(title: chapter.title, body: chapter.text, voice: voice, languageCode: languageCode,
+                              substitutions: pronunciation.substitutions(for: languageCode))
             .filter(\.isAudible).map(\.hash)
     }
 
@@ -248,7 +270,8 @@ final class NarrationCoordinator {
     private func renderInBackground(_ job: BackgroundJob) async {
         let store = NarrationStore(projectKey: job.ref.projectKey)
         let chunks = ChapterChunker.chunks(
-            title: job.chapter.title, body: job.chapter.text, voice: job.voice, languageCode: job.languageCode)
+            title: job.chapter.title, body: job.chapter.text, voice: job.voice, languageCode: job.languageCode,
+            substitutions: pronunciation.substitutions(for: job.languageCode))
         let audible = chunks.filter(\.isAudible)
         let hashes = audible.map(\.hash)
         guard !audible.isEmpty else { return }

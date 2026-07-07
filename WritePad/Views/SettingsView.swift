@@ -30,6 +30,16 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                Section {
+                    NavigationLink {
+                        PronunciationSettingsView()
+                    } label: {
+                        Label("Pronunciation", systemImage: "character.bubble")
+                    }
+                } footer: {
+                    Text("Teach the narrator how to say specific words, numbers, or abbreviations.")
+                }
             }
             .navigationTitle("Settings")
             .toolbar {

@@ -9,8 +9,10 @@ enum NarrationScript {
     /// Scene/chapter-break silence, in seconds; read by the engines.
     static let pauseSeconds = 0.6
 
-    static func full(title: String, body: String, languageCode: String? = nil) -> String {
-        adjust(title, languageCode) + pauseToken + prepareBody(body, languageCode: languageCode)
+    static func full(title: String, body: String, languageCode: String? = nil,
+                     substitutions: [TextSubstitution] = []) -> String {
+        adjust(title, languageCode, substitutions: substitutions) + pauseToken
+            + prepareBody(body, languageCode: languageCode, substitutions: substitutions)
     }
 
     static func isEnglish(_ languageCode: String?) -> Bool {
@@ -21,23 +23,28 @@ enum NarrationScript {
         languageCode?.lowercased().hasPrefix("de") ?? false
     }
 
-    /// Language-specific clock-time fixes so the engine doesn't voice the colon:
+    /// User pronunciation substitutions first (their intent wins), then
+    /// language-specific clock-time fixes so the engine doesn't voice the colon:
     /// English "8:40" → "8 40"; German "8:40 Uhr" → "8 Uhr 40".
-    static func adjust(_ text: String, _ languageCode: String?) -> String {
+    static func adjust(_ text: String, _ languageCode: String?,
+                       substitutions: [TextSubstitution] = []) -> String {
+        var text = substitutions.reduce(text) { $1.apply(to: $0) }
         if isEnglish(languageCode) {
-            return text.replacingOccurrences(
+            text = text.replacingOccurrences(
                 of: #"(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)"#, with: "$1 $2",
                 options: .regularExpression)
         } else if isGerman(languageCode) {
-            return text.replacingOccurrences(
+            text = text.replacingOccurrences(
                 of: #"(?<!\d)(\d{1,2}):([0-5]\d)\s*Uhr\b"#, with: "$1 Uhr $2",
                 options: .regularExpression)
         }
         return text
     }
 
-    static func prepareBody(_ body: String, languageCode: String?) -> String {
-        reflowParagraphs(stripInlineEmphasis(normalizeSceneBreaks(adjust(body, languageCode))))
+    static func prepareBody(_ body: String, languageCode: String?,
+                            substitutions: [TextSubstitution] = []) -> String {
+        reflowParagraphs(stripInlineEmphasis(normalizeSceneBreaks(
+            adjust(body, languageCode, substitutions: substitutions))))
     }
 
     // MARK: - Karaoke tokens

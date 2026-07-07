@@ -5,6 +5,7 @@ import SwiftUI
 struct ProjectDetailView: View {
     @Environment(ProjectLibrary.self) private var library
     @Environment(NarrationCoordinator.self) private var narration
+    @Environment(PronunciationSettings.self) private var pronunciation
 
     let project: BookProject
 
@@ -60,6 +61,7 @@ struct ProjectDetailView: View {
         .onChange(of: selectedVoiceID) { Task { await refreshAudioStatus() } }
         .onChange(of: narration.phase) { Task { await refreshAudioStatus() } }
         .onChange(of: narration.generationStamp) { Task { await refreshAudioStatus() } }
+        .onChange(of: pronunciation.rules) { Task { await refreshAudioStatus() } }
         .sheet(item: $readingChapter) { chapter in
             KaraokeReadingView(chapter: chapter, projectKey: project.folderName,
                                languageCode: manuscript?.languageCode)
@@ -181,12 +183,14 @@ struct ProjectDetailView: View {
         let chapters = manuscript.chapters
         let key = project.folderName
         let lang = manuscript.languageCode
+        let subs = pronunciation.substitutions(for: lang)
         audioStatus = await Task.detached(priority: .utility) {
             let store = NarrationStore(projectKey: key)
             var result: [String: NarrationStore.ChapterAudioStatus] = [:]
             for chapter in chapters {
                 let hashes = ChapterChunker
-                    .chunks(title: chapter.title, body: chapter.text, voice: voice, languageCode: lang)
+                    .chunks(title: chapter.title, body: chapter.text, voice: voice,
+                            languageCode: lang, substitutions: subs)
                     .filter(\.isAudible).map(\.hash)
                 result[chapter.id] = store.chapterStatus(chapterID: chapter.id, hashes: hashes)
             }
