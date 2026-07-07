@@ -34,8 +34,9 @@ struct WordTiming: Codable, Equatable, Sendable {
 struct ChapterTimeline: Codable, Equatable, Sendable {
     /// Bumped when the alignment algorithm or stored shape changes; an older
     /// cache no longer matches this version and is recomputed. (v2: reject
-    /// implausibly early leading anchors — see `WordAligner`.)
-    static let currentVersion = 2
+    /// implausibly early leading anchors — see `WordAligner`. v3: force a
+    /// re-transcribe to capture diagnostic logging.)
+    static let currentVersion = 3
 
     let version: Int
     let audioModified: Date
