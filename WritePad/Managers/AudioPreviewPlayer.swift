@@ -9,9 +9,11 @@ final class AudioPreviewPlayer: NSObject, AVAudioPlayerDelegate {
 
     func play(url: URL) throws {
         stop()
+        #if os(iOS)
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playback, mode: .spokenAudio)
         try session.setActive(true)
+        #endif
         let player = try AVAudioPlayer(contentsOf: url)
         player.delegate = self
         player.play()

@@ -36,7 +36,7 @@ struct ProjectDetailView: View {
             }
         }
         .navigationTitle(manuscript?.title ?? project.displayTitle)
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
         .toolbar { toolbarContent }
         .safeAreaInset(edge: .bottom) { MemoryReadout() }
         .task(id: project.id) { await loadManuscript() }
@@ -78,7 +78,7 @@ struct ProjectDetailView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItem(placement: .barTrailing) {
             if voices.count > 1 {
                 Picker("Voice", selection: $selectedVoiceID) {
                     ForEach(voices) { voice in
@@ -87,7 +87,7 @@ struct ProjectDetailView: View {
                 }
             }
         }
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItem(placement: .barTrailing) {
             Menu {
                 Button {
                     if let chapters = manuscript?.chapters { enqueue(chapters) }
@@ -108,7 +108,7 @@ struct ProjectDetailView: View {
                       ? "waveform.circle.fill" : "waveform")
             }
         }
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItem(placement: .barTrailing) {
             Button { Task { await refresh() } } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }

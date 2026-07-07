@@ -7,8 +7,18 @@
 
 import SwiftUI
 
+#if os(macOS)
+/// Quits WritePad when its last window closes, matching single-window Mac apps.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+}
+#endif
+
 @main
 struct WritePadApp: App {
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    #endif
     @Environment(\.scenePhase) private var scenePhase
     @State private var settings: AppSettings
     @State private var library: ProjectLibrary
@@ -39,5 +49,15 @@ struct WritePadApp: App {
                     }
                 }
         }
+
+        #if os(macOS)
+        Settings {
+            MacSettingsView()
+                .environment(settings)
+                .environment(library)
+                .environment(pronunciation)
+                .environment(narration)
+        }
+        #endif
     }
 }

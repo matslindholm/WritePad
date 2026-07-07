@@ -34,7 +34,28 @@ final class MemoryMonitor {
 
     func sample() {
         footprintBytes = Self.physFootprint()
-        availableBytes = UInt64(max(0, os_proc_available_memory()))
+        availableBytes = Self.availableMemory()
+    }
+
+    /// Headroom before the process would be starved of memory. On iOS this is
+    /// the per-app limit the OS enforces (jetsam); on macOS, which has no such
+    /// per-app cap, it's the free physical RAM.
+    private static func availableMemory() -> UInt64 {
+        #if os(iOS)
+        return UInt64(max(0, os_proc_available_memory()))
+        #else
+        var stats = vm_statistics64_data_t()
+        var count = mach_msg_type_number_t(
+            MemoryLayout<vm_statistics64_data_t>.size / MemoryLayout<integer_t>.size)
+        let result = withUnsafeMutablePointer(to: &stats) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else { return 0 }
+        let pageSize = UInt64(vm_kernel_page_size)
+        return (UInt64(stats.free_count) + UInt64(stats.inactive_count)) * pageSize
+        #endif
     }
 
     /// Resident memory attributed to the app, matching the jetsam accounting.

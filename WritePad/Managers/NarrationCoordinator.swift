@@ -262,6 +262,23 @@ final class NarrationCoordinator {
         return url
     }
 
+    /// Renders a sample with a specific speaker, so the auditioning UI can pick a
+    /// voice rather than always using the language default. Rules are applied in
+    /// the voice's own language.
+    func renderSample(_ text: String, voice: NarrationVoice) async throws -> URL? {
+        let languageCode = voice.language
+        let spoken = NarrationScript.prepareBody(
+            text, languageCode: languageCode, substitutions: pronunciation.substitutions(for: languageCode))
+        guard !spoken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        await parkBackground()
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("pron-preview-\(UUID().uuidString).wav")
+        try await engine(for: languageCode).render(
+            text: spoken, voice: voice, settings: NarrationSettings(), to: url)
+        MLXMemory.reclaim()
+        return url
+    }
+
     private func audibleHashes(for chapter: Chapter, voice: NarrationVoice, languageCode: String?) -> [String] {
         ChapterChunker.chunks(title: chapter.title, body: chapter.text, voice: voice, languageCode: languageCode,
                               substitutions: pronunciation.substitutions(for: languageCode))

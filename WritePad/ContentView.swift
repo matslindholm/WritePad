@@ -32,8 +32,10 @@ struct ContentView: View {
         .sheet(isPresented: $showingAdd) {
             AddRepositoryView()
         }
+        #if os(iOS)
         .sheet(isPresented: $showingSettings) {
             SettingsView()
         }
+        #endif
     }
 }

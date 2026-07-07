@@ -1,9 +1,13 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+#if os(iOS)
 /// Editor for the user's pronunciation rules: "read X as Y" substitutions
 /// applied to a chapter's spoken text before synthesis (never to the displayed
 /// text), with sample phrases to audition them and JSON import/export.
+///
+/// The iPad form-based editor. macOS uses `PronunciationPanel`, a table-style
+/// panel that fits the Settings window.
 struct PronunciationSettingsView: View {
     @Environment(PronunciationSettings.self) private var pronunciation
     @Environment(NarrationCoordinator.self) private var narration
@@ -60,10 +64,11 @@ struct PronunciationSettingsView: View {
                 Section { Text(message).font(.callout).foregroundStyle(.secondary) }
             }
         }
+        .formStyle(.grouped)
         .navigationTitle("Pronunciation")
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .barTrailing) {
                 Menu {
                     Button { beginExport() } label: { Label("Export…", systemImage: "square.and.arrow.up") }
                     Button { showImporter = true } label: { Label("Import…", systemImage: "square.and.arrow.down") }
@@ -152,7 +157,7 @@ private struct SubstitutionRow: View {
                 TextField("Replacement", text: $rule.replacement)
             }
             .font(.system(.body, design: .monospaced))
-            .textInputAutocapitalization(.never)
+            .noAutocapitalization()
             .autocorrectionDisabled()
 
             HStack(spacing: 12) {
@@ -216,3 +221,4 @@ struct JSONDocument: FileDocument {
         FileWrapper(regularFileWithContents: data)
     }
 }
+#endif

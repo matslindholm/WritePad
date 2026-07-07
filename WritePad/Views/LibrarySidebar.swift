@@ -27,12 +27,18 @@ struct LibrarySidebar: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .barLeading) {
+                #if os(macOS)
+                SettingsLink {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                #else
                 Button { showingSettings = true } label: {
                     Label("Settings", systemImage: "gearshape")
                 }
+                #endif
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .barTrailing) {
                 Button { showingAdd = true } label: {
                     Label("Add Book", systemImage: "plus")
                 }

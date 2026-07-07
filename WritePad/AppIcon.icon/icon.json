@@ -1,26 +1,20 @@
 {
   "fill" : {
-    "linear-gradient" : [
-      "extended-gray:1.00000,1.00000",
-      "extended-gray:0.75000,1.00000"
-    ],
-    "orientation" : {
-      "start" : {
-        "x" : 0.5,
-        "y" : 0
-      },
-      "stop" : {
-        "x" : 0.5,
-        "y" : 0.7
-      }
-    }
+    "solid" : "extended-gray:1.00000,1.00000"
   },
   "groups" : [
     {
       "layers" : [
         {
           "image-name" : "AppIcon.png",
-          "name" : "AppIcon"
+          "name" : "AppIcon",
+          "position" : {
+            "scale" : 1.2,
+            "translation-in-points" : [
+              0,
+              -25.200000000000045
+            ]
+          }
         }
       ],
       "shadow" : {

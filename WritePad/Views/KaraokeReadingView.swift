@@ -41,9 +41,9 @@ struct KaraokeReadingView: View {
         NavigationStack {
             content
                 .navigationTitle(chapter.title)
-                .navigationBarTitleDisplayMode(.inline)
+                .inlineNavigationTitle()
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } }
+                    ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                 }
                 .safeAreaInset(edge: .bottom) { if loadState == .ready { controlBar } }
         }
@@ -235,9 +235,11 @@ final class ReadingPlayer: NSObject, AVAudioPlayerDelegate {
 
     func load(url: URL) throws {
         stop()
+        #if os(iOS)
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playback, mode: .spokenAudio)
         try session.setActive(true)
+        #endif
         let player = try AVAudioPlayer(contentsOf: url)
         player.delegate = self
         player.prepareToPlay()

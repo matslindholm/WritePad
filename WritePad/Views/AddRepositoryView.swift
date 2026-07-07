@@ -24,6 +24,7 @@ struct AddRepositoryView: View {
                     }
                 }
         }
+        .macSheetFrame()
         .task { await loadIfNeeded() }
     }
 
