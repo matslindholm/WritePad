@@ -16,6 +16,7 @@ enum CloudKeyValueStore {
     private static var store: NSUbiquitousKeyValueStore { .default }
 
     static let libraryKey = "library.projects"
+    static let pronunciationKey = "pronunciation.rules"
     static func markersKey(projectKey: String) -> String { "markers." + projectKey }
 
     static func data(forKey key: String) -> Data? { store.data(forKey: key) }

@@ -14,6 +14,7 @@ final class PronunciationSettings {
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let key = "pronunciationRules"
+    @ObservationIgnored private var cloudObserver: NSObjectProtocol?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -22,6 +23,12 @@ final class PronunciationSettings {
             rules = decoded
         } else {
             rules = .default
+        }
+        // Fold in anything already synced from another device. `didSet` doesn't
+        // fire during init, so persist the merged result explicitly.
+        if mergeFromCloud() { persist() }
+        cloudObserver = CloudKeyValueStore.observeExternalChanges { [weak self] in
+            Task { @MainActor in self?.mergeFromCloud() }
         }
     }
 
@@ -94,5 +101,30 @@ final class PronunciationSettings {
     private func persist() {
         guard let data = try? JSONEncoder().encode(rules) else { return }
         defaults.set(data, forKey: key)
+        pushToCloud()
+    }
+
+    // MARK: - iCloud sync
+
+    /// Mirrors the current rules to iCloud key–value storage. A no-op when iCloud
+    /// is unavailable, so nothing changes offline.
+    private func pushToCloud() {
+        let exchange = PronunciationExchange(substitutions: rules.substitutions,
+                                             sampleSentences: rules.sampleSentences)
+        if let data = try? JSONEncoder().encode(exchange) {
+            CloudKeyValueStore.set(data, forKey: CloudKeyValueStore.pronunciationKey)
+        }
+    }
+
+    /// Merges rules synced from another device into the local set, additively and
+    /// deduped by content (same policy as importing). Returns whether anything
+    /// was added. Outside `init`, `merge` re-persists via `didSet`, which pushes
+    /// the merged set back so every device converges.
+    @discardableResult
+    private func mergeFromCloud() -> Bool {
+        guard let data = CloudKeyValueStore.data(forKey: CloudKeyValueStore.pronunciationKey),
+              let exchange = try? JSONDecoder().decode(PronunciationExchange.self, from: data) else { return false }
+        let added = merge(exchange)
+        return added.rules > 0 || added.samples > 0
     }
 }
