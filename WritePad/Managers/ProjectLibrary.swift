@@ -155,6 +155,12 @@ final class ProjectLibrary {
     private func normalizeStorageKeys() {
         let reposRoot = settings.reposRootURL
         let snapshot = projects
+        // Once every project already sits on its normalized key there's nothing to
+        // move, so skip the work — crucially the `hasPendingUploads` walk, which
+        // otherwise scans the whole iCloud narration tree on every launch.
+        guard snapshot.contains(where: {
+            BookProject.storageKey(for: $0.cloneURL) != $0.folderName
+        }) else { return }
         Task { [weak self] in
             let renamed = await Task.detached(priority: .utility) { () -> [String: String] in
                 guard !NarrationStorage.hasPendingUploads() else { return [:] }
