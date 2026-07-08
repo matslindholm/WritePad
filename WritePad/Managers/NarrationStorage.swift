@@ -113,6 +113,13 @@ enum NarrationStorage {
         return status == nil || status == .current
     }
 
+    /// True when `url` is a synced iCloud item whose data isn't on this device
+    /// yet — an evicted placeholder awaiting a fetch. False for local files,
+    /// already-downloaded files, and items that don't exist at all.
+    static func needsDownload(_ url: URL) -> Bool {
+        itemExists(at: url) && !isDownloaded(url)
+    }
+
     /// Ensures `url`'s data is on this device, pulling it from iCloud if it's an
     /// evicted placeholder. Bounded wait; a no-op for local files and files
     /// already downloaded.

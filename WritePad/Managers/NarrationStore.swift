@@ -153,11 +153,21 @@ struct NarrationStore: Sendable {
         await NarrationStorage.ensureDownloaded([manifestURL(chapterID: chapterID)])
     }
 
+    /// True when the chapter's chunk manifest is synced from iCloud but its bytes
+    /// aren't on this device yet, so `chapterStatus` can't read it. The library
+    /// shows a cloud badge and fetches the manifest before settling the status.
+    func manifestNeedsDownload(chapterID: String) -> Bool {
+        NarrationStorage.needsDownload(manifestURL(chapterID: chapterID))
+    }
+
     /// How much of a chapter's audio is on disk, for the library indicator.
     enum ChapterAudioStatus: Sendable, Equatable {
         case none      // nothing cached
         case partial   // some chunks rendered, but not assembled / out of date
         case ready     // assembled and matching the current text + voice
+        case cloud     // synced to iCloud but not downloaded — status unknown
+                       // until the manifest is fetched. Set by the view layer,
+                       // never returned by `chapterStatus`.
     }
 
     /// `hashes` is the ordered list of the chapter's *audible* chunk hashes for

@@ -237,25 +237,46 @@ struct ProjectDetailView: View {
         let key = project.folderName
         let lang = manuscript.languageCode
         let subs = pronunciation.substitutions(for: lang)
-        let computed = await Task.detached(priority: .utility) {
+        // First pass — statuses readable without touching iCloud. A chapter whose
+        // manifest is a synced-but-undownloaded placeholder reads as `.cloud`, so a
+        // badge shows while pass two fetches it; its real status can't be computed
+        // until then.
+        let firstPass = await Task.detached(priority: .utility) {
             let store = NarrationStore(projectKey: key)
             var status: [String: NarrationStore.ChapterAudioStatus] = [:]
+            var hashes: [String: [String]] = [:]
             var timelines: [String: Bool] = [:]
             for chapter in chapters {
-                let hashes = ChapterChunker
+                let chapterHashes = ChapterChunker
                     .chunks(title: chapter.title, body: chapter.text, voice: voice,
                             languageCode: lang, substitutions: subs)
                     .filter(\.isAudible).map(\.hash)
-                // Fetch the tiny manifest from iCloud so a synced chapter reads as
-                // ready, not partial (no-op locally).
-                await store.ensureManifestDownloaded(chapterID: chapter.id)
-                status[chapter.id] = store.chapterStatus(chapterID: chapter.id, hashes: hashes)
+                hashes[chapter.id] = chapterHashes
                 timelines[chapter.id] = store.hasTimeline(chapterID: chapter.id)
+                status[chapter.id] = store.manifestNeedsDownload(chapterID: chapter.id)
+                    ? .cloud
+                    : store.chapterStatus(chapterID: chapter.id, hashes: chapterHashes)
             }
-            return (status, timelines)
+            return (status: status, hashes: hashes, timelines: timelines)
         }.value
-        audioStatus = computed.0
-        timelineReady = computed.1
+        audioStatus = firstPass.status
+        timelineReady = firstPass.timelines
+
+        // Second pass — fetch the placeholder manifests (no-op locally), then
+        // settle their real statuses in place.
+        let pending = firstPass.status.filter { $0.value == .cloud }.map(\.key)
+        guard !pending.isEmpty else { return }
+        let hashes = firstPass.hashes
+        let settled = await Task.detached(priority: .utility) {
+            let store = NarrationStore(projectKey: key)
+            var status: [String: NarrationStore.ChapterAudioStatus] = [:]
+            for id in pending {
+                await store.ensureManifestDownloaded(chapterID: id)
+                status[id] = store.chapterStatus(chapterID: id, hashes: hashes[id] ?? [])
+            }
+            return status
+        }.value
+        for (id, chapterStatus) in settled { audioStatus[id] = chapterStatus }
     }
 
     private func narrate(_ chapter: Chapter) {
@@ -356,6 +377,12 @@ private struct ChapterRow: View {
             Image(systemName: "circle.bottomhalf.filled")
                 .foregroundStyle(.secondary).imageScale(.small)
                 .accessibilityLabel("Audio partially generated")
+        case .cloud:
+            // Synced to iCloud but not downloaded — fetching the manifest to
+            // determine the real status.
+            Image(systemName: "icloud.and.arrow.down")
+                .foregroundStyle(.secondary).imageScale(.small)
+                .accessibilityLabel("Fetching from iCloud")
         case .none:
             EmptyView()
         }
