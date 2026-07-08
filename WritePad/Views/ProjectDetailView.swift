@@ -246,6 +246,9 @@ struct ProjectDetailView: View {
                     .chunks(title: chapter.title, body: chapter.text, voice: voice,
                             languageCode: lang, substitutions: subs)
                     .filter(\.isAudible).map(\.hash)
+                // Fetch the tiny manifest from iCloud so a synced chapter reads as
+                // ready, not partial (no-op locally).
+                await store.ensureManifestDownloaded(chapterID: chapter.id)
                 status[chapter.id] = store.chapterStatus(chapterID: chapter.id, hashes: hashes)
                 timelines[chapter.id] = store.hasTimeline(chapterID: chapter.id)
             }

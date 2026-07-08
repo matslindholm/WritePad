@@ -145,6 +145,14 @@ struct NarrationStore: Sendable {
             [wav, manifestURL(chapterID: chapterID), timelineURL(chapterID: chapterID)])
     }
 
+    /// Pulls just a chapter's chunk manifest (a few hundred bytes) down from
+    /// iCloud, so `chapterStatus` can read it. Without this, a synced-but-not-yet-
+    /// downloaded chapter reads its manifest as a placeholder (nil) and shows as
+    /// `.partial` rather than `.ready`. No-op locally or once downloaded.
+    func ensureManifestDownloaded(chapterID: String) async {
+        await NarrationStorage.ensureDownloaded([manifestURL(chapterID: chapterID)])
+    }
+
     /// How much of a chapter's audio is on disk, for the library indicator.
     enum ChapterAudioStatus: Sendable, Equatable {
         case none      // nothing cached
