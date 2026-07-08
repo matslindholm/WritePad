@@ -178,6 +178,12 @@ final class NarrationCoordinator {
         }
         let hashes = audible.map(\.hash)
 
+        // Pull the chapter's audio + metadata down from iCloud first (no-op for
+        // local storage), so the up-to-date check below reads a real manifest
+        // instead of an evicted placeholder and plays the synced audio rather
+        // than re-rendering it.
+        await store.ensureChapterDownloaded(chapterID: chapter.id)
+
         // Up to date: assembled file exists and was built from exactly these
         // chunks (same text, same voice) — play it, no model run.
         if let assembled = store.existingChapterAudio(chapterID: chapter.id),
@@ -402,6 +408,7 @@ final class NarrationCoordinator {
             }
             let store = NarrationStore(projectKey: job.ref.projectKey)
             guard let audioURL = store.existingChapterAudio(chapterID: job.chapter.id) else { continue }
+            await NarrationStorage.ensureDownloaded(audioURL)   // fetch from iCloud if needed
             let tokens = NarrationScript.tokens(title: job.chapter.title, body: job.chapter.text)
             do {
                 let timeline = try await timing.timeline(
@@ -464,6 +471,7 @@ final class NarrationCoordinator {
                 completed += 1
                 backgroundRendering?.completed = completed
             }
+            await store.ensureChunksDownloaded(hashes: hashes)
             try await assembleAndSave(chapterID: job.ref.chapterID, chunks: chunks,
                                       hashes: hashes, voice: job.voice, store: store)
             enqueueTimeline(chapter: job.chapter, in: job.ref, languageCode: job.languageCode)
@@ -536,6 +544,9 @@ final class NarrationCoordinator {
                 }
             }
 
+            // Chunks reused from iCloud arrive as placeholders; fetch them so
+            // assembly can read their samples.
+            await store.ensureChunksDownloaded(hashes: hashes)
             let outURL = try await assembleAndSave(
                 chapterID: chapter.id, chunks: chunks, hashes: hashes, voice: voice, store: store)
             if !isBackgroundActive { store.collectGarbageChunks() }

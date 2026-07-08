@@ -224,6 +224,7 @@ struct KaraokeReadingView: View {
         lastActiveIndex = 0
         let store = NarrationStore(projectKey: projectKey)
         markerCount = store.loadMarkers(chapterID: current.id).count
+        await store.ensureChapterDownloaded(chapterID: current.id)   // fetch from iCloud if needed
         guard let audioURL = store.existingChapterAudio(chapterID: current.id) else {
             errorMessage = "This chapter has no generated audio yet."
             loadState = .failed

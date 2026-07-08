@@ -29,6 +29,15 @@ struct WritePadApp: App {
         // Relocate the narration cache out of the purgeable Caches directory
         // before anything reads it, keeping already-generated audio.
         NarrationStore.migrateFromCachesIfNeeded()
+        #if DEBUG
+        NarrationStorage.logDiagnostics()
+        #endif
+        // With iCloud storage on, warm the container and lift any local leftovers
+        // (just-migrated caches, or audio generated while offline) up to iCloud.
+        if NarrationStorage.isICloudEnabled {
+            NarrationStorage.prime()
+            Task.detached(priority: .utility) { try? await NarrationStorage.migrate(toICloud: true) }
+        }
         let settings = AppSettings()
         let pronunciation = PronunciationSettings()
         _settings = State(initialValue: settings)

@@ -30,6 +30,38 @@ struct GitHubTokenSettings: View {
     }
 }
 
+/// Toggle for storing generated audio in iCloud, with live migration status.
+/// Shared by the iOS settings sheet and the macOS General tab.
+struct AudioStorageSettings: View {
+    @Environment(AppSettings.self) private var settings
+
+    var body: some View {
+        Section {
+            Toggle("Store Audio in iCloud", isOn: Binding(
+                get: { settings.syncAudioToICloud },
+                set: { on in Task { await settings.setSyncAudioToICloud(on) } }))
+                .disabled(settings.iCloudMigration == .running)
+
+            if settings.iCloudMigration == .running {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(settings.syncAudioToICloud ? "Bringing audio back to this device…"
+                                                    : "Moving audio to iCloud…")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("Audio Storage")
+        } footer: {
+            if case .failed(let message) = settings.iCloudMigration {
+                Text(message).foregroundStyle(.red)
+            } else {
+                Text("Keep generated narration in iCloud so it — and your markers — follow you to your other devices. Audio can be large and uses your iCloud storage. Manuscripts always sync from GitHub, so they're never stored here.")
+            }
+        }
+    }
+}
+
 #if os(iOS)
 /// GitHub token entry presented as a modal sheet on iPad, with an explicit
 /// Save so a mistyped token isn't committed.
@@ -43,6 +75,8 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 GitHubTokenSettings(token: $token)
+
+                AudioStorageSettings()
 
                 Section {
                     NavigationLink {
@@ -85,6 +119,7 @@ struct MacSettingsView: View {
         TabView {
             Form {
                 GitHubTokenSettings(token: $token)
+                AudioStorageSettings()
             }
             .formStyle(.grouped)
             .onAppear { token = settings.githubToken }

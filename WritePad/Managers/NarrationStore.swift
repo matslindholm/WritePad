@@ -21,29 +21,22 @@ struct NarrationStore: Sendable {
 
     init(projectKey: String) {
         self.projectKey = projectKey
-        root = Self.narrationRoot.appendingPathComponent(Self.safe(projectKey), isDirectory: true)
-    }
-
-    /// Base directory holding every project's narration cache. Lives in
-    /// Application Support rather than Caches: chapter audio costs a model
-    /// download plus GPU time to rebuild, so it must not be purged by the OS
-    /// under storage pressure the way a cache can be.
-    static var narrationRoot: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return base.appendingPathComponent("Narration", isDirectory: true)
+        root = NarrationStorage.activeRoot.appendingPathComponent(Self.safe(projectKey), isDirectory: true)
     }
 
     /// One-shot relocation of the narration store from its old home in Caches to
-    /// Application Support. Same-volume, so the common case is a single instant
-    /// rename; a partially-migrated new location is merged file-by-file (keeping
-    /// whatever the new location already holds). Safe to call on every launch —
-    /// it does nothing once the old directory is gone.
+    /// its local Application Support root. Same-volume, so the common case is a
+    /// single instant rename; a partially-migrated new location is merged
+    /// file-by-file (keeping whatever the new location already holds). Safe to
+    /// call on every launch — it does nothing once the old directory is gone.
+    /// (Lifting the local store into iCloud, when that's enabled, is a separate
+    /// step handled by `NarrationStorage.migrate`.)
     static func migrateFromCachesIfNeeded() {
         let fm = FileManager.default
         let old = fm.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Narration", isDirectory: true)
         guard fm.fileExists(atPath: old.path) else { return }
-        let new = narrationRoot
+        let new = NarrationStorage.localRoot
         if fm.fileExists(atPath: new.path) {
             merge(old, into: new, using: fm)
             try? fm.removeItem(at: old)
@@ -81,7 +74,13 @@ struct NarrationStore: Sendable {
     }
 
     func chunkExists(hash: String) -> Bool {
-        FileManager.default.fileExists(atPath: chunkURL(hash: hash).path)
+        NarrationStorage.itemExists(at: chunkURL(hash: hash))
+    }
+
+    /// Pulls the given chunks down from iCloud if they're evicted placeholders,
+    /// so `loadSamples` can read them when assembling a chapter. No-op locally.
+    func ensureChunksDownloaded(hashes: [String]) async {
+        await NarrationStorage.ensureDownloaded(hashes.map { chunkURL(hash: $0) })
     }
 
     func prepareChunkDirectory() throws {
@@ -131,7 +130,19 @@ struct NarrationStore: Sendable {
 
     func existingChapterAudio(chapterID: String) -> URL? {
         let url = chapterDirectory.appendingPathComponent("\(Self.safe(chapterID)).wav")
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        return NarrationStorage.itemExists(at: url) ? url : nil
+    }
+
+    /// Brings a chapter's assembled audio and its small metadata (chunk manifest
+    /// and read-along timeline) down from iCloud, so it can be played and read on
+    /// a device that didn't generate it. No-op for local storage or already-here
+    /// files. Awaited before playback so the "up to date" check reads a real
+    /// manifest rather than an evicted placeholder (which would force a needless
+    /// re-render).
+    func ensureChapterDownloaded(chapterID: String) async {
+        let wav = chapterDirectory.appendingPathComponent("\(Self.safe(chapterID)).wav")
+        await NarrationStorage.ensureDownloaded(
+            [wav, manifestURL(chapterID: chapterID), timelineURL(chapterID: chapterID)])
     }
 
     /// How much of a chapter's audio is on disk, for the library indicator.
@@ -179,7 +190,7 @@ struct NarrationStore: Sendable {
     }
 
     func hasTimeline(chapterID: String) -> Bool {
-        FileManager.default.fileExists(atPath: timelineURL(chapterID: chapterID).path)
+        NarrationStorage.itemExists(at: timelineURL(chapterID: chapterID))
     }
 
     private func timelineURL(chapterID: String) -> URL {
