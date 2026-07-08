@@ -15,6 +15,7 @@ final class ProjectLibrary {
         self.settings = settings
         load()
         mergeCloudMarkers()
+        normalizeStorageKeys()
         cloudObserver = CloudKeyValueStore.observeExternalChanges { [weak self] in
             self?.handleCloudChange()
         }
@@ -46,7 +47,7 @@ final class ProjectLibrary {
 
     /// Clones a repo and adds it to the library.
     func add(_ repo: GitHubRepo) async throws {
-        let folderName = Self.folderName(for: repo.fullName)
+        let folderName = BookProject.storageKey(for: repo.cloneURL)
         let destination = settings.reposRootURL.appendingPathComponent(folderName, isDirectory: true)
         try await checkout.clone(from: repo.cloneURL,
                                  token: settings.hasToken ? settings.githubToken : nil,
@@ -55,7 +56,9 @@ final class ProjectLibrary {
             id: repo.fullName, name: repo.name, fullName: repo.fullName,
             cloneURL: repo.cloneURL, defaultBranch: repo.defaultBranch,
             folderName: folderName, isPrivate: repo.isPrivate, lastFetched: Date())
-        projects.removeAll { $0.id == project.id }
+        // Dedupe on the normalized storage key, so the same manuscript added via
+        // a different URL form (or a different owner alias) reuses one entry.
+        projects.removeAll { $0.id == project.id || $0.folderName == folderName }
         projects.append(project)
         sortAndSave()
     }
@@ -141,7 +144,45 @@ final class ProjectLibrary {
         mergeCloudMarkers()
     }
 
-    private static func folderName(for fullName: String) -> String {
-        fullName.replacingOccurrences(of: "/", with: "__")
+    // MARK: - Storage-key migration
+
+    /// Consolidates any project still keyed by its old owner-qualified folder
+    /// name onto the normalized-URL storage key — moving its clone directory and
+    /// narration cache and merging duplicates (audio preserved, content-addressed
+    /// chunks make collisions safe). Deferred entirely while iCloud is still
+    /// uploading, so it never disturbs an in-flight transfer; it runs on a later
+    /// launch once sync has settled. File work runs off the main actor.
+    private func normalizeStorageKeys() {
+        let reposRoot = settings.reposRootURL
+        let snapshot = projects
+        Task { [weak self] in
+            let renamed = await Task.detached(priority: .utility) { () -> [String: String] in
+                guard !NarrationStorage.hasPendingUploads() else { return [:] }
+                let fm = FileManager.default
+                var map: [String: String] = [:]
+                for project in snapshot {
+                    let newKey = BookProject.storageKey(for: project.cloneURL)
+                    guard newKey != project.folderName else { continue }
+                    let oldClone = reposRoot.appendingPathComponent(project.folderName, isDirectory: true)
+                    let newClone = reposRoot.appendingPathComponent(newKey, isDirectory: true)
+                    if fm.fileExists(atPath: oldClone.path) {
+                        // A clone is a whole repo — don't file-merge it; drop the
+                        // redundant copy if the target already exists.
+                        if fm.fileExists(atPath: newClone.path) { try? fm.removeItem(at: oldClone) }
+                        else { try? fm.moveItem(at: oldClone, to: newClone) }
+                    }
+                    NarrationStorage.renameProjectTree(from: project.folderName, to: newKey)
+                    map[project.folderName] = newKey
+                }
+                return map
+            }.value
+            guard let self, !renamed.isEmpty else { return }
+            for index in projects.indices {
+                if let newKey = renamed[projects[index].folderName] { projects[index].folderName = newKey }
+            }
+            var seen = Set<String>()
+            projects = projects.filter { seen.insert($0.folderName).inserted }
+            sortAndSave()
+        }
     }
 }

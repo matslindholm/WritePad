@@ -174,6 +174,55 @@ enum NarrationStorage {
         try? fm.removeItem(at: src)
     }
 
+    // MARK: - Storage-key normalization
+
+    /// True while any file in the iCloud narration tree is still uploading, so a
+    /// key-rename migration can defer until sync settles rather than move files
+    /// out from under an in-flight transfer.
+    static func hasPendingUploads() -> Bool {
+        guard isICloudEnabled, let root = iCloudRoot(),
+              FileManager.default.fileExists(atPath: root.path),
+              let walker = FileManager.default.enumerator(
+                at: root, includingPropertiesForKeys: [.ubiquitousItemIsUploadingKey]) else { return false }
+        for case let url as URL in walker {
+            if (try? url.resourceValues(forKeys: [.ubiquitousItemIsUploadingKey]))?
+                .ubiquitousItemIsUploading == true { return true }
+        }
+        return false
+    }
+
+    /// Moves a project's narration cache from one storage key to another under
+    /// the active root, merging file-by-file and never overwriting (content-
+    /// addressed chunks are identical, so a collision is safe to skip). A plain
+    /// move within the same store — within the iCloud container it stays
+    /// ubiquitous, so no re-upload.
+    static func renameProjectTree(from oldKey: String, to newKey: String) {
+        let root = activeRoot
+        mergeMove(root.appendingPathComponent(oldKey, isDirectory: true),
+                  to: root.appendingPathComponent(newKey, isDirectory: true))
+    }
+
+    /// Recursively moves every file under `src` to the matching path under `dst`,
+    /// skipping any the destination already has, then removes the emptied source.
+    static func mergeMove(_ src: URL, to dst: URL) {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: src.path) else { return }
+        if !fm.fileExists(atPath: dst.path), (try? fm.moveItem(at: src, to: dst)) != nil { return }
+        if let items = try? fm.contentsOfDirectory(at: src, includingPropertiesForKeys: [.isDirectoryKey]) {
+            for item in items {
+                let target = dst.appendingPathComponent(item.lastPathComponent)
+                let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+                if isDir {
+                    try? fm.createDirectory(at: target, withIntermediateDirectories: true)
+                    mergeMove(item, to: target)
+                } else if !fm.fileExists(atPath: target.path) {
+                    try? fm.moveItem(at: item, to: target)
+                }
+            }
+        }
+        try? fm.removeItem(at: src)
+    }
+
     private static func itemExistsSync(at url: URL, fm: FileManager) -> Bool {
         fm.fileExists(atPath: url.path)
             || fm.fileExists(atPath: url.deletingLastPathComponent()
